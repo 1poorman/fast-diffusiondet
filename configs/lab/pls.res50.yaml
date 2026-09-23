@@ -1,0 +1,39 @@
+_BASE_: "../Base-DiffusionDet.yaml"
+
+# fast-diffusiondet / Stage B (confirmation) -- PLS/Plantv2, 16 thing classes.
+# Hyper-params mirror configs/lab/sdd.res50.yaml; only dataset / #classes / iterations differ.
+# NOTE (Windows): keep this file pure ASCII, see sdd.res50.yaml.
+MODEL:
+  DiffusionDet:
+    NUM_CLASSES: 16         # PLS: 16 thing classes after dropping id=0 '_background_'
+    NUM_PROPOSALS: 300
+  WEIGHTS: ""
+
+DATASETS:
+  TRAIN: ("pls_train",)
+  TEST: ("pls_val",)
+
+SOLVER:
+  IMS_PER_BATCH: 2
+  BASE_LR: 0.000025
+  MAX_ITER: 12000          # ~3 epochs @ 7916 imgs / bs2 = 3958 iter/epoch; revisit after M0 timing
+  STEPS: (9000, 11000)
+  WARMUP_ITERS: 200
+  AMP:
+    ENABLED: True
+  CHECKPOINT_PERIOD: 2000
+  CLIP_GRADIENTS:
+    ENABLED: True
+    CLIP_TYPE: "full_model"
+    CLIP_VALUE: 1.0
+    NORM_TYPE: 2.0
+
+TEST:
+  EVAL_PERIOD: 2000
+
+DATALOADER:
+  NUM_WORKERS: 0
+  FILTER_EMPTY_ANNOTATIONS: False
+
+OUTPUT_DIR: "output/lab/pls.res50"
+VERSION: 2

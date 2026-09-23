@@ -5,6 +5,8 @@
 # Contact: {sunpeize, cxrfzhang}@foxmail.com
 #
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+import os
+
 from detectron2.config import CfgNode as CN
 
 
@@ -53,6 +55,17 @@ def add_diffusiondet_config(cfg):
 
     # Inference
     cfg.MODEL.DiffusionDet.USE_NMS = True
+
+    # ---------------- fast-diffusiondet extensions (M0) ----------------
+    # 迁移初始化（决策 D2）：留空则由 diffusiondet/weights.py 自动搜索
+    cfg.MODEL.DiffusionDet.PRETRAIN_PATH = os.environ.get("FASTDD_PRETRAIN", "")
+    # 未被迁移覆盖的层（主要是分类头）的初始化确定性
+    cfg.MODEL.DiffusionDet.CLS_REINIT_SEED = 0
+    # A11：冻结 stem+res2 以省显存，默认关闭
+    cfg.MODEL.DiffusionDet.FREEZE_BACKBONE_STAGE1 = False
+
+    # 数据集根目录（PLS/SDD）；留空则 diffusiondet/data_register.py 自动搜索
+    cfg.DATASET_ROOT = os.environ.get("FASTDD_DATASET", "")
 
     # Swin Backbones
     cfg.MODEL.SWIN = CN()

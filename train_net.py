@@ -33,6 +33,8 @@ from detectron2.solver.build import maybe_add_gradient_clipping
 from detectron2.modeling import build_model
 
 from diffusiondet import DiffusionDetDatasetMapper, add_diffusiondet_config, DiffusionDetWithTTA
+from diffusiondet.data_register import register_all
+from diffusiondet.weights import load_transfer_weights, maybe_freeze_backbone_stage1
 from diffusiondet.util.model_ema import add_model_ema_configs, may_build_model_ema, may_get_ema_checkpointer, EMAHook, \
     apply_model_ema_and_restore, EMADetectionCheckpointer
 
@@ -90,8 +92,19 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.modeling.build_model`.
         Overwrite it if you'd like a different model.
         """
+        # 未被迁移权重覆盖的层（主要是分类头）保持可复现的随机初始化
+        reinit_seed = int(getattr(cfg.MODEL.DiffusionDet, "CLS_REINIT_SEED", 0) or 0)
+        if reinit_seed:
+            torch.manual_seed(reinit_seed)
+
         model = build_model(cfg)
         logger = logging.getLogger(__name__)
+
+        # A11 可选：冻结 stem+res2 省显存
+        maybe_freeze_backbone_stage1(model, cfg)
+        # D2：COCO 迁移初始化（逐参数形状过滤，自动跳过 80 类分类层）
+        load_transfer_weights(model, cfg=cfg, logger=logger)
+
         logger.info("Model:\n{}".format(model))
         # setup EMA
         may_build_model_ema(cfg, model)
@@ -262,6 +275,8 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
+    # 注册 PLS / SDD（数据集根目录见 cfg.DATASET_ROOT / 环境变量 FASTDD_DATASET）
+    register_all(cfg=cfg)
 
     if args.eval_only:
         model = Trainer.build_model(cfg)

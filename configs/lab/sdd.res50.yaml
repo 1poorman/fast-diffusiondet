@@ -1,0 +1,42 @@
+_BASE_: "../Base-DiffusionDet.yaml"
+
+# fast-diffusiondet / Stage A (screening) -- SDD/Strawberry, 7 thing classes.
+# Tuned for single RTX 3060 Laptop 6GB.
+# NOTE (Windows): fvcore.PathManager opens YAML with the locale encoding (GBK on
+# this machine), so keep every file under configs/ pure ASCII. Chinese notes live
+# in the docs, never here.
+# FEP sec.2.3: every arm must share the same batch / LR / iteration budget.
+MODEL:
+  DiffusionDet:
+    NUM_CLASSES: 7          # SDD: 7 thing classes after dropping id=0 '_background_'
+    NUM_PROPOSALS: 300      # FEP sec.2.3: must be identical across the whole matrix
+  WEIGHTS: ""              # transfer init is handled by train_net.build_model -> weights.load_transfer_weights
+
+DATASETS:
+  TRAIN: ("sdd_train",)
+  TEST: ("sdd_val",)
+
+SOLVER:
+  IMS_PER_BATCH: 2         # 6GB VRAM ceiling; drop to 1 if OOM
+  BASE_LR: 0.000025
+  MAX_ITER: 3500           # ~4 epochs @ 1750 imgs / bs2 = 875 iter/epoch
+  STEPS: (2800,)
+  WARMUP_ITERS: 100
+  AMP:
+    ENABLED: True
+  CHECKPOINT_PERIOD: 1000
+  CLIP_GRADIENTS:
+    ENABLED: True
+    CLIP_TYPE: "full_model"
+    CLIP_VALUE: 1.0
+    NORM_TYPE: 2.0
+
+TEST:
+  EVAL_PERIOD: 1000
+
+DATALOADER:
+  NUM_WORKERS: 0           # Windows: keep 0 first, try 2 later if stable
+  FILTER_EMPTY_ANNOTATIONS: False
+
+OUTPUT_DIR: "output/lab/sdd.res50"
+VERSION: 2
