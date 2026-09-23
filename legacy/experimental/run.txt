@@ -1,0 +1,1 @@
+python train.py --config-file configs/diffdet.coco.res50.yaml

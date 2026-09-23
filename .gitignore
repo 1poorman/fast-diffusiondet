@@ -1,0 +1,48 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# ---------- 训练产物 / 权重 ----------
+output/
+petrain/
+models/
+*.pth
+*.pt
+*.pkl
+*.ckpt
+*.tar
+runs/
+logs/
+*.log
+events.out.tfevents.*
+datasets/
+
+# ---------- DPM-Solver-v3 EMS 统计量（可由 scripts/ 重算） ----------
+statistics/
+# 注：diffusiondet/samplers/l.npz / sb.npz 是上游遗留的 CIFAR-10 图像统计量
+#     形状 (121,3,32,32)，与本项目 box 数据不兼容，已随 legacy/ 归档
+*.npz
+
+# ---------- 环境 ----------
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
+
+# ---------- IDE ----------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---------- 临时实验脚本 / 个人备忘 ----------
+scratch/
+tmp/
+*.bak
