@@ -112,7 +112,7 @@
 | B1 | 🔴 | `detector_dpm3.py:624, 641` | 调 `self.multistep_{predictor,corrector}_update`，但 `Dpm3Det` 未持有 `DPM_Solver_v3` 实例，这两个方法只存在于 `samplers/dpm_solver_v3.py:445, 488` | **不要在它上面改**，M1 重写；仅作为移植参考 |
 | B2 | 🔴 | `detector_dpm3.py:738` | `forward()` 调 `self.ddim_sample(...)`，但该类没有 `ddim_sample` | 同上 |
 | B3 | 🔴 | `detector_dpm3.py:426-467` | `self.noise_schedule` 从未赋值（`__init__` 参数是字符串），`total_N` 访问必崩 | 同上 |
-| B4 | 🟡 | `detector_dpm3.py:433-435` | 依赖外部 `l.npz`/`sb.npz`，仓库内**不存在** | M3 自己算 |
+| B4 | 🟡 | `detector_dpm3.py:433-435` | 依赖 `l.npz`/`sb.npz`。**实测它们确实存在**（`samplers/` 下，2 MB + 5.5 MB），但形状是 **`(121, 3, 32, 32)` = CIFAR-10 图像统计量**，与本项目 `(B,P,4)` 不兼容 | 已随 `legacy/` 归档；M3 必须自算 box 版 EMS，见 §3.4 |
 | B5 | 🟡 | `diffusiondet/samplers/` | **缺 `__init__.py`**，包内相对导入不可用 | M1 建新包 `solvers/` 时补上 |
 | B6 | 🟡 | `detector.py:62`、`detector_noise.py:90`、`dmp3.py:21` | 三处同名注册 `"DiffusionDet"`，registry 被最后 import 者覆盖 | `__init__.py` 未导出后两者，暂时无害；M0 清理 `dmp3.py`（残缺 stub，第 30 行后无 forward、且 `cfg.MODEL.DIFFUSIONDET` 大小写错误） |
 | B7 | 🟠 | `train.py:42` | 硬编码 `E:\Files\DL code\datasets\wgisd`（非 raw string，路径也不存在） | M0 改为 CLI 可配 + 注册 PLS/SDD |

@@ -130,6 +130,12 @@
 | — | 实测 PLS / SDD 数据集规模、类别、id 编号陷阱 | ✅ |
 | — | 产出 `docs/BLUEPRINT.md` v1.0 | ✅ |
 | — | 建立 `docs/PROGRESS.md` 反馈回环 | ✅ |
+| — | 建立 `fast-diffusiondet/` 并 fork 源码（排除 `petrain/`、`output/`，共 43 文件 8.41 MB） | ✅ |
+| — | 校验 SSH（`git@github.com` 认证成功，账号 `1poorman`）；远端确认为**空仓库** | ✅ |
+| — | 归档不可运行的上游实验代码 → `legacy/experimental/`，并解除 `__init__.py` 依赖 | ✅ |
+| — | 写 `.gitignore` / `.gitattributes` / `README.md`(fork 说明) | ✅ |
+| — | git 三提交：`376e325` 基线 → `ec19193` 文档 → `de568bd` 基建与隔离 | ✅ |
+| — | 关联远端并推送 `main`；建立 `dev` 分支 | ✅ |
 
 **本轮关键发现（影响后续设计）**
 1. `fast-diffusiondet` 是二改版：`train.py` 硬编码 WGISD 路径、`detector_dpm3.py` 是**跑不起来的半成品**
@@ -141,6 +147,9 @@
 4. Box Renewal（`detector.py:209-238`）+ Ensemble 仅在多步时生效（`detector.py:239`）
    → "多步更好"是混淆的，必须按 §2.3 FEP 解耦。
 5. PFGM++ 相对 EDM 只改了**两处**（扰动核 + 先验），网络/预条件完全一致 → 性价比最高的一条线。
+6. **修正蓝图 B4**：`samplers/l.npz`(2 MB)、`sb.npz`(5.5 MB) **确实存在**，但实测形状为
+   **`(121, 3, 32, 32)`**，是 **CIFAR-10 图像的 EMS 统计量**，与 box 数据 `(B,P,4)` 完全不兼容。
+   → 不能走"直接拿来用"的捷径，M3 必须自算；这两个文件已随 `legacy/` 归档并被 `.gitignore` 排除。
 
 **下一步（等待指令即进入 M0）**
 1. 建 `configs/lab/sdd.res50.yaml` + `diffusiondet/data_register.py`（修正背景类 id 映射）
@@ -153,11 +162,38 @@
 
 | # | 问题 | 状态 | 影响 |
 |---|---|---|---|
-| Q1 | 是否同意"阶段 A 用 SDD 筛选、阶段 B 用 PLS 确认"的两阶段协议？ | 待用户确认 | M4/M5 排期 |
-| Q2 | 是否在 M0 就先冻结/隔离 `detector_dpm3.py`、`detector_noise.py`、`dmp3.py`、`train.py`？ | 待用户确认（建议隔离） | M0 |
-| Q3 | 是否允许修改原 `configs/*.yaml`？（建议一律新建到 `configs/lab/`） | 待用户确认 | M0 |
+| Q2 | ~~是否隔离 `detector_dpm3.py`/`detector_noise.py`/`dmp3.py`/`train.py`？~~ | ✅ **已办**（2026-09-23） | 已归档 `legacy/experimental/` 并解除 `__init__.py` 导入 |
+| Q3 | ~~是否允许修改原 `configs/*.yaml`？~~ | ✅ **已定**（2026-09-23） | 一律新建到 `configs/lab/`，原 configs 保持 upstream 原样 |
+| Q1 | 是否采用「SDD 筛选 → PLS 确认」两阶段协议？ | 待用户确认 | M4/M5 排期 |
 | Q4 | `petrain/diffdet_coco_res50.pth`（COCO 80 类）是否用作迁移初始化？ | 待用户确认（默认不用） | M4/M5 训练时长 |
 | Q5 | 评测 seed 数量固定为 3 是否可接受？（影响 eval 总时长约 3×） | 待用户确认 | M2/M3 排期 |
+
+---
+
+## 7.1 版本管理约定
+
+| 项 | 值 |
+|---|---|
+| 远端 | `git@github.com:1poorman/fast-diffusiondet.git` |
+| 本地路径 | `e:/Files/DL-code/model+/diffusion-model/fast-diffusiondet` |
+| 默认分支 | `main`（只接受已过 Gate 的成果） |
+| 日常分支 | `dev`；按里程碑开 `feat/m0-*`、`feat/m1-*`、`feat/m2-*` …，过 Gate 后合入 `dev` |
+| 发布 | `dev` 达成一个里程碑 → PR 合入 `main` → 打 tag `m<n>` |
+| **Commit 规范** | `<type>(<milestone>): <subject>`，type ∈ `feat` `fix` `perf` `docs` `chore` `test` `refactor` |
+| 提交身份 | 暂用 GitHub noreply（`1poorman@users.noreply.github.com`），**待用户确认真实邮箱**，未推送前可 amend |
+| 不在版本库 | `petrain/`、`output/`、`statistics/`、`*.pth`、`*.npz`（见 `.gitignore`） |
+
+**分叉基线：`376e325`** —— 该 commit 是 upstream 源码快照，
+任何"我们改了什么"都可以 `git diff 376e325` 一眼看清。
+
+**每次动手的流程（写死，照做）**
+```
+1. git checkout dev && git pull
+2. git checkout -b feat/m<n>-<what>
+3. 改代码 → PROGRESS.md 加日志行 → RESULTS.md 落数据
+4. git add -A && git commit -m "<type>(m<n>): ..."
+5. 过 Gate → 合入 dev → 里程碑完成时 PR 到 main 并 tag
+```
 
 ---
 
