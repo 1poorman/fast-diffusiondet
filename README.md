@@ -37,6 +37,10 @@
 >
 > 数据集位于 `../dataset/`：`PLS/Plantv2`（16 类）、`SDD/Strawberry`（7 类）。
 > 两者 json 均含 `(0, '_background_')` 而 GT 从不使用，注册时必须自建 id 映射。
+>
+> **迁移初始化（决策 D2）**：默认加载 COCO 权重 `diffdet_coco_res50.pth`（443 MB，**不入库**），
+> 搜索顺序 `$FASTDD_PRETRAIN` → `petrain/` → `../DiffusionDet-main/petrain/`；
+> 加载方式为 `strict=False` 并丢弃 COCO 的 80 类分类层。详见 `docs/BLUEPRINT.md` §6.1。
 
 **DiffusionDet is the first work of diffusion model for object detection.**
 

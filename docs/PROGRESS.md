@@ -136,6 +136,10 @@
 | — | 写 `.gitignore` / `.gitattributes` / `README.md`(fork 说明) | ✅ |
 | — | git 三提交：`376e325` 基线 → `ec19193` 文档 → `de568bd` 基建与隔离 | ✅ |
 | — | 关联远端并推送 `main`；建立 `dev` 分支 | ✅ |
+| — | 改写全部历史 author/committer → `1poorman <2990161445@qq.com>`（`git rebase --root --exec`，4 commits） | ✅ |
+| — | **决策 D1**：采纳两阶段协议（SDD 筛选 → PLS 确认） | ✅ 已入蓝图 §2.4 / §10 |
+| — | **决策 D2**：采用 COCO 迁移初始化，且所有 arm 统一同一份权重 | ✅ 已入蓝图 §6.1 / §10 |
+| — | 补充 §6.1 预训练权重加载协议（哪些层匹配/哪些必须丢弃）+ 新增 A10/A11 消融 | ✅ |
 
 **本轮关键发现（影响后续设计）**
 1. `fast-diffusiondet` 是二改版：`train.py` 硬编码 WGISD 路径、`detector_dpm3.py` 是**跑不起来的半成品**
@@ -151,10 +155,16 @@
    **`(121, 3, 32, 32)`**，是 **CIFAR-10 图像的 EMS 统计量**，与 box 数据 `(B,P,4)` 完全不兼容。
    → 不能走"直接拿来用"的捷径，M3 必须自算；这两个文件已随 `legacy/` 归档并被 `.gitignore` 排除。
 
-**下一步（等待指令即进入 M0）**
-1. 建 `configs/lab/sdd.res50.yaml` + `diffusiondet/data_register.py`（修正背景类 id 映射）
-2. 修 `train.py` 硬编码路径 → CLI 参数
-3. 跑 `--eval-only` 冒烟 + 100 iter 训练，采集 `it/s`、`latency_ms`、`peak_mem_GB`
+**下一步：进入 M0 实施**（Q1/Q4 已答复，M0 已从"未开始"转为"进行中"）
+1. `diffusiondet/data_register.py` —— 注册 `pls_*` / `sdd_*`，显式构造 `id_map={cid: cid-1}` 排除 background（16 / 7 类）
+2. `diffusiondet/weights.py` —— `resolve_pretrain()` + `strict=False` 加载并**丢弃 cls 层**（D2）
+3. `configs/lab/sdd.res50.yaml` / `configs/lab/pls.res50.yaml` —— 统一其 `NUM_CLASSES`、`IMS_PER_BATCH=2`、AMP、`OUTPUT_DIR`
+4. 跑 `--eval-only` 冒烟 + 100 iter 训练，采集 `it/s`、`latency_ms`、`peak_mem_GB`
+5. SDD 短周期训练产出 baseline checkpoint
+6. 据此填"排期估算"表
+
+> 注：原 `train.py` 已归档至 `legacy/`（硬编码 WGISD 路径），
+> 一律使用官方入口根目录 **`train_net.py`**，数据集注册改为包内模块 + CLI 参数。
 
 ---
 
@@ -164,9 +174,11 @@
 |---|---|---|---|
 | Q2 | ~~是否隔离 `detector_dpm3.py`/`detector_noise.py`/`dmp3.py`/`train.py`？~~ | ✅ **已办**（2026-09-23） | 已归档 `legacy/experimental/` 并解除 `__init__.py` 导入 |
 | Q3 | ~~是否允许修改原 `configs/*.yaml`？~~ | ✅ **已定**（2026-09-23） | 一律新建到 `configs/lab/`，原 configs 保持 upstream 原样 |
-| Q1 | 是否采用「SDD 筛选 → PLS 确认」两阶段协议？ | 待用户确认 | M4/M5 排期 |
-| Q4 | `petrain/diffdet_coco_res50.pth`（COCO 80 类）是否用作迁移初始化？ | 待用户确认（默认不用） | M4/M5 训练时长 |
+| ~~Q1~~ | **两阶段协议** | ✅ **已采纳**（2026-09-23）→ **D1** | SDD 跑全矩阵筛选，PLS 只跑 top-2 + baseline |
+| ~~Q4~~ | **是否用 `diffdet_coco_res50.pth` 迁移初始化** | ✅ **采用**（2026-09-23）→ **D2** | 所有 arm 统一同一份权重；新增 A10 对照从头训练 |
 | Q5 | 评测 seed 数量固定为 3 是否可接受？（影响 eval 总时长约 3×） | 待用户确认 | M2/M3 排期 |
+
+> 编号说明：用户答复中的 "Q2 迁移初始化" 对应本表原 **Q4**（因 Q2/Q3 已在上一步结办）。
 
 ---
 
@@ -180,7 +192,7 @@
 | 日常分支 | `dev`；按里程碑开 `feat/m0-*`、`feat/m1-*`、`feat/m2-*` …，过 Gate 后合入 `dev` |
 | 发布 | `dev` 达成一个里程碑 → PR 合入 `main` → 打 tag `m<n>` |
 | **Commit 规范** | `<type>(<milestone>): <subject>`，type ∈ `feat` `fix` `perf` `docs` `chore` `test` `refactor` |
-| 提交身份 | 暂用 GitHub noreply（`1poorman@users.noreply.github.com`），**待用户确认真实邮箱**，未推送前可 amend |
+| 提交身份 | ✅ **已确认为** `1poorman <2990161445@qq.com>`，全部历史已改写（2026-09-23）<br>⚠ 本机未设 `git config user.*`，后续提交需带 `-c user.name=1poorman -c user.email=2990161445@qq.com`（或自行 `git config --local user.email 2990161445@qq.com`） |
 | 不在版本库 | `petrain/`、`output/`、`statistics/`、`*.pth`、`*.npz`（见 `.gitignore`） |
 
 **分叉基线：`376e325`** —— 该 commit 是 upstream 源码快照，

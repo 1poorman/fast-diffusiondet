@@ -165,6 +165,9 @@
   跑**全 matrix**。用于剔除无效分支。
 - **阶段 B（确认）**：只让阶段 A 的 **top-2 组合 + baseline** 在 **PLS/Plantv2** 上跑完整训练，产出论文级数字。
 
+> ✅ **决策 D1（2026-09-23）：采纳两阶段协议。** 阶段 A 用 SDD 跑全矩阵，阶段 B 只让 top-2 + baseline
+> 在 PLS 上完整训练。理由：单卡 6GB 下，若在 PLS(7916 张) 上跑全矩阵不可行。
+
 > 节奏预算在 M0 实测 `it/s` 之后定稿，写进 `PROGRESS.md` 的"排期"表。
 
 ---
@@ -394,6 +397,8 @@ l_i = mean_over_batch_and_coords( σ_i · eps_fd · v )
 | A7 | PFGM++ radial 粒度：global vs per_proposal |
 | A8 | EMS 统计量模式：scalar vs per_coord vs none(degenerated) |
 | A9 | Karras `ρ ∈ {3,7,12}` 与 `skip_type ∈ {logSNR, time_uniform}` |
+| **A10** | **迁移初始化（COCO ckpt）vs 仅 ImageNet backbone 从头训练** |（D2 副作用对照，必做） |
+| A11 | `FREEZE_BACKBONE_STAGE1`（显存优化，允许更大 batch） |
 
 ---
 
@@ -412,6 +417,7 @@ l_i = mean_over_batch_and_coords( σ_i · eps_fd · v )
 3. 修正 `train.py` 的硬编码路径改为 CLI 参数（B7）；删除/隔离 `dmp3.py`、`detector_noise.py`（B6）。
 4. 实机测 `it/s`、`latency_ms`、`peak_mem` 基线。
 5. **在 SDD 上跑通短周期训练（约 3500 iter）并 eval，产出 baseline checkpoint。**
+   按决策 D2 接入 COCO 迁移初始化（`diffusiondet/weights.py`，`strict=False` + 丢弃 cls 层）。
 6. 编写 `run_all.sh` / `run_all.ps1` 一键跑完整矩阵。
 
 **Gate M0**
@@ -507,7 +513,40 @@ Karras ρ=7 时间步；`scripts/calib_sigma_data.py` 实测 `σ_data`。
 | 损失加权 | `loss.py` | reg 分支乘 `λ(σ)`（EDM）/ 不变（PFGM++ 已在扰动里） |
 | 时间嵌入 | `head.py:96-101` | 接入 `c_noise`，可选 `GaussianFourierProjection`（`head.py:46-57`） |
 | 数据集注册 | `train.py:41-108` | 新建 `data_register.py`，路径 CLI 化 |
-| 预训练权重 | — | **暂不使用** `petrain/diffdet_coco_res50.pth`（COCO 80 类，head cls 层形状不匹配；若要用必须 `strict=False` 且丢弃 cls 层，列为可选 A10） |
+| 迁移初始化 | `detector.py:64-128` | ✅ **决策 D2（2026-09-23）：使用** `diffdet_coco_res50.pth`（COCO 80 类）作为**所有 arm 的统一初始化**。实现见下方"预训练权重加载协议" |
+
+---
+
+### 6.1 预训练权重加载协议（决策 D2）
+
+**权重文件**：`diffdet_coco_res50.pth`（443 MB，COCO 80 类 DiffusionDet 完整权重）
+**位置**：**不入库**（`.gitignore` 已排除 `*.pth`）。默认按序搜索：
+
+1. `$FASTDD_PRETRAIN` 环境变量
+2. `petrain/diffdet_coco_res50.pth`（仓库内，推荐软链）
+3. `../DiffusionDet-main/petrain/diffdet_coco_res50.pth`（当前实际位置）
+
+解析逻辑放在 `diffusiondet/weights.py:resolve_pretrain(cfg)`，由 `train_net.py` 调用。
+
+**加载方式**（`strict=False`，且必须显式丢弃分类层）：
+
+| 模块 | 形状是否匹配 | 处理 |
+|---|---|---|
+| backbone (ResNet-50) + FPN | ✅ | 直接加载，是迁移价值的主要来源 |
+| `head.time_mlp` | ✅ | 加载（离散 t 的嵌入能力与 M4 的 `c_noise` 输入域不同 → 见 A6） |
+| `head` 的 dynamic conv / reg 分支 / bbox embed | ✅ | 加载 |
+| **分类层 `cls_module` 最后一层** | ❌ `[80, 256]` vs `[16/7, 256]` | **丢弃**，按 `PRIOR_PROB=0.01` 重新初始化 |
+| `head.num_classes` 相关 buffer | ❌ | 丢弃重建 |
+
+> ⚠ **公平性要求**：F0/F1/F2 **三个训练范式必须加载同一份权重**、同一个 80→K 的重初始化 seed，
+> 否则 M4/M5 的对比失效。重初始化 seed 写入配置 `MODEL.DiffusionDet.CLS_REINIT_SEED`。
+
+> ⚠ **迁移初始化的副作用**：all arms 都从一个**已收敛的 COCO 检测器**出发，
+> 会压缩训练范式改造之间的差距，也可能掩盖 EDM/PFGM++ 的收益。
+> → 追加 **A10 消融**：至少让 baseline 与 top-1 组合额外跑一版"仅 ImageNet backbone、head 随机初始化"，
+> 用于确认结论不是迁移带来的假象。
+
+**新增配置项**：`MODEL.DiffusionDet.PRETRAIN_PATH`、`CLS_REINIT_SEED`、`FREEZE_BACKBONE_STAGE1`（A11，显存优化）。
 
 ---
 
@@ -560,6 +599,17 @@ fast-diffusiondet/
 2. 每完成一个 Gate 条目：`RESULTS.md` 记录数据 → `PROGRESS.md` 勾选该 Gate → `todo_write` 更新状态。
 3. 遇到与蓝图不符的事实：**先更新蓝图**（标注 `v1.x 修订`），再改代码；禁止"代码已变、文档没变"。
 4. 每个 hypothesis（H1–H4）在 `RESULTS.md` 中常驻一行"当前判定"，随数据更新。
+
+---
+
+## 10. 决策记录（Decision Log）
+
+> 每次改变实验路线都必须在此留痕，编号 `D<n>`，正文相应位置引用。
+
+| ID | 日期 | 决策 | 理由 | 影响 |
+|---|---|---|---|---|
+| **D1** | 2026-09-23 | 采纳**两阶段实验协议**（SDD 筛选 → PLS 确认） | 单卡 RTX 3060 6GB，在 PLS(7916 张) 上跑全矩阵不可行 | §2.4、M4/M5/M6 排期 |
+| **D2** | 2026-09-23 | 使用 **COCO 迁移初始化**，且**所有 arm 统一同一份权重** | 缩短 M4/M5 训练时长；保证跨 arm 公平 | §6.1 加载协议、新增 A10/A11、新增配置项 `PRETRAIN_PATH`/`CLS_REINIT_SEED`/`FREEZE_BACKBONE_STAGE1` |
 
 ---
 
