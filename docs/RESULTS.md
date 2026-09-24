@@ -131,7 +131,48 @@ backbone + 其他固定开销 ≈ 108.48 − 71.5 ≈ 37 ms
 3. 备选缓解：对离散 timestep 做插值式时间嵌入（把 `t` 以浮点喂给 `SinusoidalPositionEmbeddings`）。
    已登记为风险 **R14**。
 
-## 5. 假设判定看板（随数据更新）
+## 5. M2 training-free 对比矩阵（进行中）
+
+配置：`f0`（VP baseline，同一个 `model_final.pth`，**权重冻结**）、SDD val **全量 750 张**、
+`box_renewal=False`、`use_ensemble=False`（FEP §2.3 的纯采样器对比）、`NUM_PROPOSALS=300`。
+数据：`results/raw/matrix.csv`。
+
+| solver | NFE=1 | NFE=2 | NFE=4 |
+|---|---|---|---|
+| **DDIM**（基线） seed0 | 60.53 | 59.62 | 56.72 |
+| seed1 | 60.71 | 59.82 | 56.84 |
+| seed2 | 60.62 | 59.26 | 56.73 |
+| **DDIM 均值** | **60.62** | **59.57** | **56.76** |
+| Euler | 待跑 | 待跑 | 待跑 |
+| Heun | 待跑（NFE=1/3/5） | | |
+| DPM-Solver-v3 (order=2, degenerated) | 待跑 | 待跑 | 待跑 |
+
+### 6.1 🔴 重要发现：关掉 renewal+ensemble 后，**步数越多 AP 越低**
+
+DDIM 的 AP 随 NFE **单调下降**（60.62 → 59.57 → 56.76）。
+
+结合 `detector.py:239` 的事实 —— Box Renewal 与 Ensemble **只在 `sampling_timesteps > 1` 时生效** ——
+这说明原论文"多步更好"的收益**几乎全部来自 renewal + ensemble，而不是采样质量本身**。
+在纯 ODE 意义下，DiffusionDet 的 DDIM 反而是 **1 步最优**。
+
+→ 该结论直接改变 M2 的评价口径：**新求解器要对标的不是"更多步的 DDIM"，
+而是 NFE=1 的 DDIM（AP 60.62）**。想赢就必须在 NFE=1~2 上超过它。
+同时也把 A1/A2 消融（renewal / ensemble 开与关）的优先级提到了最高。
+
+### 6.2 方法论教训：不能用评测子集加速
+
+| 子集大小 | DDIM NFE=1 的 AP |
+|---|---|
+| 20 张 | **2.02** |
+| 250 张 | **21.92** |
+| 750 张（全量） | **60.53** |
+
+AP 与子集大小近似成正比 —— pycocotools 的召回分母仍按**全量 GT** 计算，
+只在前 n 张图上推理会系统性低估。
+→ **所有 AP 数字必须用全量 split**；加速只能靠减少 NFE 网格或 seed 数。
+已在 `scripts/run_matrix.py:make_subset` 中写明警告。
+
+## 6. 假设判定看板（随数据更新）
 
 | 假设 | 内容 | 当前判定 | 依据 |
 |---|---|---|---|

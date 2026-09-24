@@ -1,0 +1,11 @@
+tag,dataset,split,n_images,solver,param,nfe,seed,AP,AP50,AP75,box_renewal,use_ensemble,eval_sec
+sdd.f0.ddim,sdd,sdd_val,750,ddim,1,1,0,60.5309,82.1443,65.5829,0,0,148.8
+sdd.f0.ddim,sdd,sdd_val,750,ddim,2,2,0,59.6162,81.3592,64.1423,0,0,152.4
+sdd.f0.ddim,sdd,sdd_val,750,ddim,4,4,0,56.7151,77.7755,60.357,0,0,248.6
+sdd.f0.ddim,sdd,sdd_val,750,ddim,8,8,0,56.0453,76.7491,59.799,0,0,382.3
+sdd.f0.ddim,sdd,sdd_val,750,ddim,1,1,1,60.7057,82.5879,66.2775,0,0,95.5
+sdd.f0.ddim,sdd,sdd_val,750,ddim,2,2,1,59.8224,80.836,64.5611,0,0,152.9
+sdd.f0.ddim,sdd,sdd_val,750,ddim,4,4,1,56.8433,78.1521,60.3251,0,0,275.9
+sdd.f0.ddim,sdd,sdd_val,750,ddim,1,1,2,60.6247,82.3353,66.8603,0,0,76.5
+sdd.f0.ddim,sdd,sdd_val,750,ddim,2,2,2,59.259,80.3948,64.2955,0,0,102.4
+sdd.f0.ddim,sdd,sdd_val,750,ddim,4,4,2,56.7272,77.5468,60.8277,0,0,219.3

@@ -24,7 +24,14 @@ __all__ = ["HeunSolver", "karras_sigma_steps"]
 
 
 def karras_sigma_steps(num_steps, sigma_min, sigma_max, rho=7.0, device="cuda"):
-    """EDM 的 rho 幂律时间步（edm-main/generate.py:36）。"""
+    """
+    EDM 的 rho 幂律时间步（edm-main/generate.py:36）。
+
+    ⚠ num_steps=1 时官方公式会出现 ``0 / (num_steps - 1)`` = NaN，
+    这里显式特例化为 [sigma_max, 0]，使 NFE=1 也可用。
+    """
+    if int(num_steps) <= 1:
+        return torch.tensor([float(sigma_max), 0.0], dtype=torch.float32, device=device)
     step_indices = torch.arange(num_steps, dtype=torch.float64, device=device)
     t_steps = (sigma_max ** (1.0 / rho)
                + step_indices / (num_steps - 1) * (sigma_min ** (1.0 / rho) - sigma_max ** (1.0 / rho))) ** rho
