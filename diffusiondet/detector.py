@@ -97,8 +97,14 @@ class DiffusionDet(nn.Module):
         self.ddim_sampling_eta = 1.
         self.self_condition = False
         self.scale = cfg.MODEL.DiffusionDet.SNR_SCALE
-        self.box_renewal = True
-        self.use_ensemble = True
+        # M1: 采样器抽象（diffusiondet/solvers/），renewal/ensemble 改为 cfg 可控
+        self.solver_name = cfg.MODEL.DiffusionDet.SOLVER
+        self.dpm_order = cfg.MODEL.DiffusionDet.ORDER
+        self.dpm_skip_type = cfg.MODEL.DiffusionDet.SKIP_TYPE
+        self.dpm_degenerated = cfg.MODEL.DiffusionDet.DEGENERATED
+        self.dpm_stats_dir = cfg.MODEL.DiffusionDet.STATS_DIR
+        self.box_renewal = cfg.MODEL.DiffusionDet.BOX_RENEWAL
+        self.use_ensemble = cfg.MODEL.DiffusionDet.USE_ENSEMBLE
 
         self.register_buffer('betas', betas)
         self.register_buffer('alphas_cumprod', alphas_cumprod)
@@ -167,6 +173,21 @@ class DiffusionDet(nn.Module):
                 extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape)
         )
 
+    def make_denoise_fn(self, backbone_feats, images_whwh):
+        """蓝图 §3.1：把 model_predictions 包成纯函数 (x, t) -> (pred_noise, x_start)。
+
+        除 DDIM 外所有 solver 都"看不见" images_whwh / backbone_feats。
+        DenoiseFn 同时负责 NFE 计数与每步 outputs 缓存。
+        """
+        from .solvers import DenoiseFn
+
+        def predict_fn(x, t):
+            preds, outputs_class, outputs_coord = self.model_predictions(
+                backbone_feats, images_whwh, x, t, None, True)
+            return preds, outputs_class, outputs_coord
+
+        return DenoiseFn(predict_fn)
+
     def model_predictions(self, backbone_feats, images_whwh, x, t, x_self_cond=None, clip_x_start=False):
         x_boxes = torch.clamp(x, min=-1 * self.scale, max=self.scale)
         x_boxes = ((x_boxes / self.scale) + 1) / 2
@@ -185,6 +206,10 @@ class DiffusionDet(nn.Module):
 
     @torch.no_grad()
     def ddim_sample(self, batched_inputs, backbone_feats, images_whwh, images, clip_denoised=True, do_postprocess=True):
+        """⚠ M1 冻结锚点：本方法是与 solvers/ddim.py 对拍的回归基准，不要修改。
+
+        正式推理入口已改为 forward -> solvers.run_sampler（按 SOLVER cfg 分发）。
+        """
         batch = images_whwh.shape[0]
         shape = (batch, self.num_proposals, 4)
         total_timesteps, sampling_timesteps, eta, objective = self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta, self.objective
@@ -311,7 +336,9 @@ class DiffusionDet(nn.Module):
 
         # Prepare Proposals.
         if not self.training:
-            results = self.ddim_sample(batched_inputs, features, images_whwh, images)
+            # M1: 经 solvers/ 分发（SOLVER=ddim 时走逐 bit 等价路径）
+            from .solvers import run_sampler
+            results = run_sampler(self, batched_inputs, features, images_whwh, images)
             return results
 
         if self.training:

@@ -56,6 +56,22 @@ def add_diffusiondet_config(cfg):
     # Inference
     cfg.MODEL.DiffusionDet.USE_NMS = True
 
+    # ---------------- M1: sampler abstraction (diffusiondet/solvers/) ----------------
+    # 推理采样器：ddim | euler | heun | dpm_v3
+    cfg.MODEL.DiffusionDet.SOLVER = "ddim"
+    # DPM-Solver-v3 阶数（1~3）；SAMPLE_STEP 兼作全部 solver 的 NFE 预算
+    cfg.MODEL.DiffusionDet.ORDER = 3
+    # DPM-Solver-v3 时间步策略：logSNR | time_uniform | time_quadratic | edm
+    cfg.MODEL.DiffusionDet.SKIP_TYPE = "logSNR"
+    # True: l=1,s=0,b=0（≈DPM-Solver++），不需要 EMS 统计量
+    cfg.MODEL.DiffusionDet.DEGENERATED = True
+    # EMS 统计量目录（M3 产出 l.npz/sb.npz；留空且 DEGENERATED=False 会报错）
+    cfg.MODEL.DiffusionDet.STATS_DIR = ""
+    # Box renewal（仅 DDIM 支持；FEP 主矩阵要求 False）
+    cfg.MODEL.DiffusionDet.BOX_RENEWAL = True
+    # 多步 ensemble + NMS（FEP 主矩阵要求 False）
+    cfg.MODEL.DiffusionDet.USE_ENSEMBLE = True
+
     # ---------------- fast-diffusiondet extensions (M0) ----------------
     # 迁移初始化（决策 D2）：留空则由 diffusiondet/weights.py 自动搜索
     cfg.MODEL.DiffusionDet.PRETRAIN_PATH = os.environ.get("FASTDD_PRETRAIN", "")

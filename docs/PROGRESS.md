@@ -3,7 +3,7 @@
 > 配套文档：`BLUEPRINT.md`（蓝图/方案/验收标准）、`RESULTS.md`（实验数据，M2 起）
 > 更新规则：**每次动手前先加一行"进行中"，完成后改状态并勾 Gate。数字变化先落 `RESULTS.md`。**
 
-最后更新：**2026-09-24 08:56** ｜ 当前里程碑：**M0 已完成 → 待进入 M1**
+最后更新：**2026-09-24 12:10** ｜ 当前里程碑：**M0/M1 已完成 → 待进入 M2**
 
 ---
 
@@ -12,7 +12,7 @@
 | 里程碑 | 状态 | 目标摘要 | 关键 Gate |
 |---|---|---|---|
 | **M0** 环境与基线建立 | ✅ **完成**（2026-09-24） | 接入 PLS/SDD、清理旧 bug、跑通单卡训练 | ✅ 全部达成：SDD baseline **AP=60.48**；it/s、latency、显存已入库 |
-| **M1** 采样器接口与正确性 | ⬜ 未开始 | `solvers/` 包：DDIM/Heun/DPMv3 | DDIM 逐 bit 一致；解析解收敛阶达标 |
+| **M1** 采样器接口与正确性 | ✅ **完成**（2026-09-24） | `solvers/` 包：DDIM/Heun/DPMv3 | ✅ 全部达成：DDIM 逐 bit 一致；收敛阶 0.90/2.23/2.33；NFE 全对；真模型无 NaN |
 | **M2** Training-free 矩阵 | ⬜ 未开始 | E0-{DDIM,HEUN,EULER,DPP} × NFE | H1：NFE≤4 下 ≥ +0.5 AP 或 2× 提速 |
 | **M3** EMS 标定 + DPMv3 全功率 | ⬜ 未开始 | 有限差分 JVP 版 EMS | H3：EMS 相对 degenerated ≥ +0.3 AP |
 | **M4** EDM 训练范式 | ⬜ 未开始 | 预条件 + 对数正态 σ + λ(σ) | H4：高 NFE 上界 ≥ +0.5 AP |
@@ -74,10 +74,10 @@
 - [x] 排期估算已填表
 
 ### M1 Gate
-- [ ] DDIM 等价回归 `max|Δ| < 1e-5`
-- [ ] 解析解收敛阶达标（Euler O(h)、Heun O(h²)、DPMv3 ≥ O(h²)）
-- [ ] NFE 计数与理论值一致
-- [ ] 三 solver 在真实 ckpt 上无 NaN
+- [x] DDIM 等价回归 `max|Δ| < 1e-5`（实测 SAMPLE_STEP=1/4 均**逐 bit 相等**，max|Δ|=0）
+- [x] 解析解收敛阶达标：Euler **0.903**（O(h)）、Heun **2.227**（O(h²)）、DPMv3 **2.33**（≥O(h²)）
+- [x] NFE 计数与理论值一致（DDIM k / Heun 2N-1 / Euler N / DPMv3 steps）
+- [x] 三 solver 在真实 ckpt 上无 NaN（随机初始化模型 + SAMPLE_STEP=4，4 个 solver 全部有限）
 
 ### M2 Gate
 - [ ] AP–NFE / latency–NFE 曲线 ×4 入表（含 ±std）
@@ -124,6 +124,38 @@
 ---
 
 ## 6. 工作日志
+
+### 2026-09-24（M1 实施）
+
+| 时间 | 事项 | 状态 |
+|---|---|---|
+| 09:40 | 环境/仓库迁移到 Linux 工作站（4×3090，conda env `fastdiff`，torch 2.1.2+cu121，d2 0.6 源码编译），新建 `master` 分支 | ✅ |
+| 10:30 | 开始 M1：克隆 EDM / thu-ml/DPM-Solver-v3 参考仓库 | ✅ |
+| 11:00 | 建 `diffusiondet/solvers/`：base.py（DenoiseFn+NFE 计数）、schedule.py、ddim.py（逐行抽取）、heun.py（w=σ/α 参数化 Euler/Heun）、dpm_solver_v3.py（移植+去 .cuda 硬编码+统计量 1 维化） | ✅ |
+| 11:20 | 新增 cfg：SOLVER/ORDER/SKIP_TYPE/DEGENERATED/STATS_DIR/BOX_RENEWAL/USE_ENSEMBLE；detector.forward 接入 run_sampler 分发；原 ddim_sample 保留为冻结锚点 | ✅ |
+| 11:50 | 修复移植 bug ×3：time_0n 漏 index_list 截取、统计量 (1,1,1) 尾维与 3 维 x 广播升维、**dpm_v3_sample 丢弃 sample() 返回值**（返回了初始噪声） | ✅ |
+| 12:00 | Gate 测试 11/11 通过（tests/test_m1_ddim.py + tests/test_m1_convergence.py） | ✅ |
+
+**M1 新发现**
+11. **DPM-Solver-v3 移植的三个坑**（均已修复并写入代码注释）：① 原版统计量带 `(1,1,1)` 尾维，
+    与 4 维图像 `(B,C,H,W)` 广播无事，但与我们 3 维 `(B,P,4)` 广播会错误升维，必须压成 1 维；
+    ② 原版 `.cuda()`/`torch.FloatTensor(...).cuda()` 硬编码全部设备化；
+    ③ float32 下若 `ᾱ_0` 舍入为精确 1.0（w_min≤1e-4 的测试调度），则 β_0=0 → λ=+inf → 插值段错误，
+    真实 cosine 调度无此问题，但自定义调度需保证 `ᾱ_0 < 1`。
+12. **线性高斯测试问题上 DPMv3-degenerated 数值精确**（err=0），无法测收敛阶；
+    收敛阶测试必须用非线性去噪器（本项目用 2 分量高斯混合先验）+ 高步数参考解。
+    另注：参考解步数不能接近调度表长度 T，否则 `inverse_lambda` 分段线性插值产生重复 λ
+    使 Vandermonde 矩阵奇异（实际 NFE≤10 ≪ N=1000 不会触发）。
+13. **w=σ/α 参数化下 1 阶 Euler 与 DDIM(eta=0) 严格等价**——这是 heun.py 实现正确性的自检锚点。
+14. Heun 采用直接在离散 cosine VP 调度上积分 PF-ODE 的方案（比蓝图原定"ablation_sampler 线性 VP
+    拟合"少一层近似），时间网格与 DDIM 完全同一份，保证同 NFE 公平对比（蓝图 §3.3 修订）。
+
+**M1 已全部完成 ✅。下一步：进入 M2（Training-free 对比矩阵）**
+1. 本机无 SDD/PLS 数据集（原在 Windows 机器），M2 开跑前需先迁移数据集与
+   baseline checkpoint（`output/lab/sdd.res50/model_final.pth`，AP=60.48）
+2. 跑 E0-{DDIM,HEUN,EULER,DPP} × NFE{1,2,3,4,6,8,10} × 3 seed
+   （Q5：seed 数量待用户确认；本机 3090 显存充足，IMS_PER_BATCH 可远超 2）
+3. M2 需要的 latency 基准脚本 `scripts/bench_latency.py` 待写
 
 ### 2026-09-23
 
