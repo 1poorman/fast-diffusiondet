@@ -45,14 +45,17 @@ class HeunSolver(BoxSolver):
         self.rho = float(rho)
         assert solver in ("euler", "heun"), solver
         self.solver = solver
+        self.last_outputs = (None, None)
 
     def _denoise(self, x, sigma_hat):
         """连续 sigma_hat -> 离散 timestep -> head 前向。"""
         t = self.schedule.t_from_sigma_hat(
             torch.full((x.shape[0],), float(sigma_hat), device=x.device))
         out = self.denoise(x, t)
-        # 兼容返回 ModelPrediction 或直接返回 x0 两种协议
+        # 兼容返回 (pred_noise, x_start, outputs_class, outputs_coord) 或直接返回 x0
         if isinstance(out, tuple):
+            if len(out) >= 4:
+                self.last_outputs = (out[2], out[3])
             return out[1]
         return out
 
@@ -77,4 +80,5 @@ class HeunSolver(BoxSolver):
                 d_prime = (x_next - denoised) / t_next
                 x_next = x_cur + (t_next - t_cur) * (0.5 * d_cur + 0.5 * d_prime)
 
-        return {"x_final": x_next, "x_start": x_next, "ensemble": None}
+        return {"x_final": x_next, "x_start": x_next, "ensemble": None,
+                "last_outputs": self.last_outputs}

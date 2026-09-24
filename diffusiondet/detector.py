@@ -102,6 +102,7 @@ class DiffusionDet(nn.Module):
         self.use_ensemble = True
         self.solver_name = cfg.MODEL.DiffusionDet.SOLVER
         self._last_nfe = 0
+        self.cfg = cfg
 
         self.register_buffer('betas', betas)
         self.register_buffer('alphas_cumprod', alphas_cumprod)
@@ -162,6 +163,9 @@ class DiffusionDet(nn.Module):
         pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).to(self.device).view(3, 1, 1)
         pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).to(self.device).view(3, 1, 1)
         self.normalizer = lambda x: (x - pixel_mean) / pixel_std
+
+        # 噪声调度（所有 buffer 注册完之后才能构造），供 heun / dpm_solver_v3 使用
+        self.schedule = VPSchedule(self.alphas_cumprod, device=self.device)
         self.to(self.device)
 
     def predict_noise_from_start(self, x_t, t, x0):
@@ -208,7 +212,7 @@ class DiffusionDet(nn.Module):
         denoise_fn = self.make_denoise_fn(backbone_feats, images_whwh, clip_denoised)
 
         def ensemble_cb(outputs_class, outputs_coord):
-            return self.inference(outputs_class[-1], outputs_coord[-1], images.image_sizes)
+            return self.inference(outputs_class[-1], outputs_coord[-1], images.image_sizes, ensemble=True)
 
         if self.solver_name == "ddim":
             solver = build_solver(
@@ -225,16 +229,41 @@ class DiffusionDet(nn.Module):
                 num_proposals=self.num_proposals,
                 ensemble_cb=ensemble_cb,
             )
+        elif self.solver_name in ("heun", "euler"):
+            solver = build_solver(
+                "heun",
+                denoise_fn=denoise_fn,
+                shape=shape,
+                device=self.device,
+                schedule=self.schedule,
+                num_steps=self.sampling_timesteps,
+                solver=self.solver_name,
+                rho=self.cfg.MODEL.DiffusionDet.HEUN_RHO,
+            )
+        elif self.solver_name == "dpm_solver_v3":
+            solver = build_solver(
+                "dpm_solver_v3",
+                denoise_fn=denoise_fn,
+                shape=shape,
+                device=self.device,
+                schedule=self.schedule,
+                steps=self.sampling_timesteps,
+                order=self.cfg.MODEL.DiffusionDet.DPM_ORDER,
+                skip_type=self.cfg.MODEL.DiffusionDet.DPM_SKIP_TYPE,
+                degenerated=self.cfg.MODEL.DiffusionDet.DPM_DEGENERATED,
+                statistics_dir=self.cfg.MODEL.DiffusionDet.DPM_STATS_DIR,
+            )
         else:
-            raise NotImplementedError(
-                "solver '{}' not wired yet (M1 只接了 ddim)".format(self.solver_name))
+            raise NotImplementedError("unknown solver '{}'".format(self.solver_name))
 
         out = solver.sample()
         self._last_nfe = solver.nfe          # NFE = head 前向次数（backbone 不计入）
         outputs_class, outputs_coord = out["last_outputs"]
         ensemble_score, ensemble_label, ensemble_coord = out["ensemble"] or ([], [], [])
 
-        if self.use_ensemble and self.sampling_timesteps > 1:
+        # 只有返回了 ensemble 列表的 solver（目前仅 DDIM）才走 ensemble 分支；
+        # heun / dpm_solver_v3 不产生逐步预测，直接用最后一步的 head 输出。
+        if out["ensemble"] is not None and self.use_ensemble:
             box_pred_per_image = torch.cat(ensemble_coord, dim=0)
             scores_per_image = torch.cat(ensemble_score, dim=0)
             labels_per_image = torch.cat(ensemble_label, dim=0)
@@ -253,7 +282,7 @@ class DiffusionDet(nn.Module):
             output = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
             box_cls = output["pred_logits"]
             box_pred = output["pred_boxes"]
-            results = self.inference(box_cls, box_pred, images.image_sizes)
+            results = self.inference(box_cls, box_pred, images.image_sizes, ensemble=False)
         if do_postprocess:
             processed_results = []
             for results_per_image, input_per_image, image_size in zip(results, batched_inputs, images.image_sizes):
@@ -421,8 +450,12 @@ class DiffusionDet(nn.Module):
 
         return new_targets, torch.stack(diffused_boxes), torch.stack(noises), torch.stack(ts)
 
-    def inference(self, box_cls, box_pred, image_sizes):
+    def inference(self, box_cls, box_pred, image_sizes, ensemble=None):
         """
+        ensemble:
+            True  -> 返回 (boxes, scores, labels) 张量，供逐步 ensemble 收集
+            False -> 返回 List[Instances]（做 NMS + 后处理）
+            None  -> 沿用旧行为：由 use_ensemble 与 sampling_timesteps 决定（DDIM 路径）
         Arguments:
             box_cls (Tensor): tensor of shape (batch_size, num_proposals, K).
                 The tensor predicts the classification probability for each proposal.
@@ -435,6 +468,8 @@ class DiffusionDet(nn.Module):
             results (List[Instances]): a list of #images elements.
         """
         assert len(box_cls) == len(image_sizes)
+        if ensemble is None:
+            ensemble = self.use_ensemble and self.sampling_timesteps > 1
         results = []
 
         if self.use_focal or self.use_fed_loss:
@@ -451,7 +486,7 @@ class DiffusionDet(nn.Module):
                 box_pred_per_image = box_pred_per_image.view(-1, 1, 4).repeat(1, self.num_classes, 1).view(-1, 4)
                 box_pred_per_image = box_pred_per_image[topk_indices]
 
-                if self.use_ensemble and self.sampling_timesteps > 1:
+                if ensemble:
                     return box_pred_per_image, scores_per_image, labels_per_image
 
                 if self.use_nms:
@@ -472,7 +507,7 @@ class DiffusionDet(nn.Module):
             for i, (scores_per_image, labels_per_image, box_pred_per_image, image_size) in enumerate(zip(
                     scores, labels, box_pred, image_sizes
             )):
-                if self.use_ensemble and self.sampling_timesteps > 1:
+                if ensemble:
                     return box_pred_per_image, scores_per_image, labels_per_image
 
                 if self.use_nms:

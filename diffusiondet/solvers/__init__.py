@@ -9,11 +9,12 @@ from .base import BoxSolver, NFECounter, ModelPrediction
 from .schedule import VPSchedule
 from .ddim import DDIMSolver
 from .heun import HeunSolver
+from .dpmv3 import DPMSolverV3Solver
 from .statistics import make_degenerated_statistics, ensure_statistics_dir
 
 __all__ = [
     "BoxSolver", "NFECounter", "ModelPrediction",
-    "VPSchedule", "DDIMSolver", "HeunSolver",
+    "VPSchedule", "DDIMSolver", "HeunSolver", "DPMSolverV3Solver",
     "make_degenerated_statistics", "ensure_statistics_dir",
     "SAMPLER_REGISTRY", "register_sampler", "build_solver",
 ]
@@ -30,6 +31,8 @@ def register_sampler(name):
 
 register_sampler("ddim")(DDIMSolver)
 register_sampler("heun")(HeunSolver)
+register_sampler("euler")(HeunSolver)          # euler 与 heun 同类，靠 solver= 参数区分
+register_sampler("dpm_solver_v3")(DPMSolverV3Solver)
 
 
 def build_solver(name, denoise_fn, shape, device, **kwargs):
