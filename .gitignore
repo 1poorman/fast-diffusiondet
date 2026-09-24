@@ -23,6 +23,9 @@ logs/
 events.out.tfevents.*
 datasets/
 
+# 测试基准（DDIM 逐 bit 等价回归用）必须入库
+!tests/fixtures/*.pt
+
 # ---------- DPM-Solver-v3 EMS 统计量（可由 scripts/ 重算） ----------
 statistics/
 # 注：diffusiondet/samplers/l.npz / sb.npz 是上游遗留的 CIFAR-10 图像统计量

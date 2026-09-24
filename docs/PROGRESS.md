@@ -12,7 +12,7 @@
 | 里程碑 | 状态 | 目标摘要 | 关键 Gate |
 |---|---|---|---|
 | **M0** 环境与基线建立 | ✅ **完成**（2026-09-24） | 接入 PLS/SDD、清理旧 bug、跑通单卡训练 | ✅ 全部达成：SDD baseline **AP=60.48**；it/s、latency、显存已入库 |
-| **M1** 采样器接口与正确性 | ⬜ 未开始 | `solvers/` 包：DDIM/Heun/DPMv3 | DDIM 逐 bit 一致；解析解收敛阶达标 |
+| **M1** 采样器接口与正确性 | 🟨 **进行中**（2026-09-24） | `solvers/` 包：DDIM/Heun/DPMv3 | DDIM 逐 bit 一致 ✅；收敛阶 ✅；剩 NFE 校准与 solver 分派 |
 | **M2** Training-free 矩阵 | ⬜ 未开始 | E0-{DDIM,HEUN,EULER,DPP} × NFE | H1：NFE≤4 下 ≥ +0.5 AP 或 2× 提速 |
 | **M3** EMS 标定 + DPMv3 全功率 | ⬜ 未开始 | 有限差分 JVP 版 EMS | H3：EMS 相对 degenerated ≥ +0.3 AP |
 | **M4** EDM 训练范式 | ⬜ 未开始 | 预条件 + 对数正态 σ + λ(σ) | H4：高 NFE 上界 ≥ +0.5 AP |
@@ -74,10 +74,12 @@
 - [x] 排期估算已填表
 
 ### M1 Gate
-- [ ] DDIM 等价回归 `max|Δ| < 1e-5`
-- [ ] 解析解收敛阶达标（Euler O(h)、Heun O(h²)、DPMv3 ≥ O(h²)）
-- [ ] NFE 计数与理论值一致
-- [ ] 三 solver 在真实 ckpt 上无 NaN
+- [x] DDIM 等价回归 `max|Δ| < 1e-5` → 实测 **0.000e+00**（16 条目，含 renewal + ensemble）
+- [x] 解析解收敛阶：**Euler 0.74**（~O(h)）、**Heun 2.77**（≥O(h²)）通过
+- [x] 解析解收敛阶：**DPMv3 ≥ O(h²)** → order=2 实测 **1.79**（真实 1000 档）通过
+      ⚠ order=3 在真实 1000 档**发散（−0.30）**，密集 200000 档才恢复 2.21 → 已登记 **R14**
+- [x] 三 solver 在合成去噪器上无 NaN
+- [ ] NFE 计数与理论值一致（计数器已实现，**待在真实 ckpt 上校准**）
 
 ### M2 Gate
 - [ ] AP–NFE / latency–NFE 曲线 ×4 入表（含 ±std）
@@ -187,6 +189,20 @@
 6. **修正蓝图 B4**：`samplers/l.npz`(2 MB)、`sb.npz`(5.5 MB) **确实存在**，但实测形状为
    **`(121, 3, 32, 32)`**，是 **CIFAR-10 图像的 EMS 统计量**，与 box 数据 `(B,P,4)` 完全不兼容。
    → 不能走"直接拿来用"的捷径，M3 必须自算；这两个文件已随 `legacy/` 归档并被 `.gitignore` 排除。
+
+### 2026-09-24 晚（M1 实施）
+
+| 时间 | 事项 | 状态 |
+|---|---|---|
+| 19:04 | 采集 DDIM 行为基准 `tests/fixtures/ddim_reference.pt` | ✅ |
+| 19:2x | 建 `diffusiondet/solvers/`：`base/schedule/ddim/heun/statistics/__init__` | ✅ |
+| 19:2x | 拷贝 DPM-Solver-v3 源码（MIT），把 `.cuda()` 改为 `.to(self.device)` | ✅ |
+| 19:41 | **DDIM 等价回归 PASS：max|Δ| = 0.000e+00** | ✅ |
+| 19:5x | 收敛阶测试：Euler 0.74 / Heun 2.77 / DPMv3-o2 1.79 通过 | ✅ |
+| 19:5x | 诊断 DPMv3-o3 发散 → 定位为**离散 timestep 取整**（R14） | ✅ |
+
+**M1 剩余**：NFE 计数在真实 ckpt 上校准；`dpm_solver_v3` / `heun` 接进 `detector.ddim_sample` 的
+solver 分派（目前只有 `ddim` 分支可用）。
 
 **M0 已全部完成 ✅。下一步：进入 M1（采样器统一接口与数值正确性）**
 1. 建 `diffusiondet/solvers/`：`base.py`(denoise_fn 协议 + NFE 计数) / `schedule.py` / `ddim.py` / `heun.py` / `dpm_solver_v3.py`

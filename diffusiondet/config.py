@@ -56,6 +56,18 @@ def add_diffusiondet_config(cfg):
     # Inference
     cfg.MODEL.DiffusionDet.USE_NMS = True
 
+    # ---------------- Sampler (M1) ----------------
+    # 采样器选择: 'ddim' | 'heun' | 'dpm_solver_v3'
+    cfg.MODEL.DiffusionDet.SOLVER = "ddim"
+    # DPM-Solver-v3
+    cfg.MODEL.DiffusionDet.DPM_ORDER = 3            # 求解器阶数
+    cfg.MODEL.DiffusionDet.DPM_SKIP_TYPE = "logSNR"  # logSNR | time_uniform
+    cfg.MODEL.DiffusionDet.DPM_DEGENERATED = True    # True -> 退化为 DPM-Solver++（不需真 EMS，M1 用）
+    cfg.MODEL.DiffusionDet.DPM_STATS_DIR = "statistics/degenerated"
+    # Heun / EDM 风格
+    cfg.MODEL.DiffusionDet.HEUN_SOLVER = "heun"      # euler | heun
+    cfg.MODEL.DiffusionDet.HEUN_RHO = 7.0            # Karras 幂律指数
+
     # ---------------- fast-diffusiondet extensions (M0) ----------------
     # 迁移初始化（决策 D2）：留空则由 diffusiondet/weights.py 自动搜索
     cfg.MODEL.DiffusionDet.PRETRAIN_PATH = os.environ.get("FASTDD_PRETRAIN", "")

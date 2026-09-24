@@ -567,6 +567,7 @@ Karras ρ=7 时间步；`scripts/calib_sigma_data.py` 实测 `σ_data`。
 | R11 | EDM `λ(σ)` 与 Hungarian set-loss 不兼容 | 训练不稳 | 只作用于 reg 分支（A4 验证） |
 | R12 | Beta′ 采样开销（NumPy 在 Windows worker） | dataloader 变慢 | 预生成 1e6 查表循环 |
 | R13 | PFGM++ `N=4P=1200` 时 Beta′ 过于集中，`D` 无效 | H2 不成立 | 扫足够宽的 `D`；必要时改 `per_proposal` 粒度（A7），使 `N=4` 让重尾效应显著 |
+| **R14** | **高阶多步求解器 vs 离散 timestep**：DiffusionDet 的 head 只接受 `t ∈ {0..999}` 整数，连续 σ̂ 必须取整，而 DPM-Solver-v3 的 3 阶靠缓存 ε 做有限差分估计高阶导数，取整使 ε(x,σ̂) 变成阶梯函数 → **阶数越高越容易被放大** | 高：**M1 已实测**：真实 1000 档下 DPMv3 order=3 收敛阶 **−0.30（发散）**，order=2 为 1.79；把档位加密到 200000 后 order=3 恢复为 **2.21** | ① M2 在 VP baseline 上**只用 order=2**；② M4 的 EDM 改造把时间条件换成连续 `c_noise=ln σ/4`，消除取整后再试 order=3；③ 备选：浮点 t 插值式时间嵌入。见 `RESULTS.md` §4.3 |
 
 ---
 
@@ -610,6 +611,8 @@ fast-diffusiondet/
 |---|---|---|---|---|
 | **D1** | 2026-09-23 | 采纳**两阶段实验协议**（SDD 筛选 → PLS 确认） | 单卡 RTX 3060 6GB，在 PLS(7916 张) 上跑全矩阵不可行 | §2.4、M4/M5/M6 排期 |
 | **D2** | 2026-09-23 | 使用 **COCO 迁移初始化**，且**所有 arm 统一同一份权重** | 缩短 M4/M5 训练时长；保证跨 arm 公平 | §6.1 加载协议、新增 A10/A11、新增配置项 `PRETRAIN_PATH`/`CLS_REINIT_SEED`/`FREEZE_BACKBONE_STAGE1` |
+| **D3** | 2026-09-24 | 阶段 B（PLS）`MAX_ITER` **保持 12000**，不缩减 | 用户决定；保证阶段 B 结论可信度 | M6 排期 ≈5 h GPU |
+| **D4** | 2026-09-24 | M2 评测 seed 数 **固定为 3**（取均值 ± std） | 用户决定；抑制 Monte-Carlo 噪声 | M2 排期 ≈2.5 h GPU |
 
 ---
 

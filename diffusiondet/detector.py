@@ -20,6 +20,7 @@ from detectron2.modeling import META_ARCH_REGISTRY, build_backbone, detector_pos
 from detectron2.structures import Boxes, ImageList, Instances
 
 from .loss import SetCriterionDynamicK, HungarianMatcherDynamicK
+from .solvers import build_solver, VPSchedule
 from .head import DynamicHead
 from .util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
 from .util.misc import nested_tensor_from_tensor_list
@@ -99,6 +100,8 @@ class DiffusionDet(nn.Module):
         self.scale = cfg.MODEL.DiffusionDet.SNR_SCALE
         self.box_renewal = True
         self.use_ensemble = True
+        self.solver_name = cfg.MODEL.DiffusionDet.SOLVER
+        self._last_nfe = 0
 
         self.register_buffer('betas', betas)
         self.register_buffer('alphas_cumprod', alphas_cumprod)
@@ -183,66 +186,53 @@ class DiffusionDet(nn.Module):
 
         return ModelPrediction(pred_noise, x_start), outputs_class, outputs_coord
 
+    def make_denoise_fn(self, backbone_feats, images_whwh, clip_denoised=True):
+        """
+        把 detector 的 knowledge pair 包成纯函数 ``denoise_fn(x, t)``。
+
+        返回 ``(pred_noise, x_start, outputs_class, outputs_coord)``。
+        除这里之外，solvers/ 下所有采样器都**不允许**接触 backbone_feats / images_whwh，
+        这样三个求解器才能互相替换与对拍。
+        """
+        def denoise_fn(x, t):
+            preds, outputs_class, outputs_coord = self.model_predictions(
+                backbone_feats, images_whwh, x, t, None, clip_x_start=clip_denoised)
+            return preds.pred_noise, preds.pred_x_start, outputs_class, outputs_coord
+        return denoise_fn
+
     @torch.no_grad()
     def ddim_sample(self, batched_inputs, backbone_feats, images_whwh, images, clip_denoised=True, do_postprocess=True):
         batch = images_whwh.shape[0]
         shape = (batch, self.num_proposals, 4)
-        total_timesteps, sampling_timesteps, eta, objective = self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta, self.objective
 
-        # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
-        times = torch.linspace(-1, total_timesteps - 1, steps=sampling_timesteps + 1)
-        times = list(reversed(times.int().tolist()))
-        time_pairs = list(zip(times[:-1], times[1:]))  # [(T-1, T-2), (T-2, T-3), ..., (1, 0), (0, -1)]
+        denoise_fn = self.make_denoise_fn(backbone_feats, images_whwh, clip_denoised)
 
-        img = torch.randn(shape, device=self.device)
+        def ensemble_cb(outputs_class, outputs_coord):
+            return self.inference(outputs_class[-1], outputs_coord[-1], images.image_sizes)
 
-        ensemble_score, ensemble_label, ensemble_coord = [], [], []
-        x_start = None
-        for time, time_next in time_pairs:
-            time_cond = torch.full((batch,), time, device=self.device, dtype=torch.long)
-            self_cond = x_start if self.self_condition else None
+        if self.solver_name == "ddim":
+            solver = build_solver(
+                "ddim",
+                denoise_fn=denoise_fn,
+                shape=shape,
+                device=self.device,
+                alphas_cumprod=self.alphas_cumprod,
+                num_timesteps=self.num_timesteps,
+                sampling_timesteps=self.sampling_timesteps,
+                eta=self.ddim_sampling_eta,
+                box_renewal=self.box_renewal,
+                use_ensemble=self.use_ensemble,
+                num_proposals=self.num_proposals,
+                ensemble_cb=ensemble_cb,
+            )
+        else:
+            raise NotImplementedError(
+                "solver '{}' not wired yet (M1 只接了 ddim)".format(self.solver_name))
 
-            preds, outputs_class, outputs_coord = self.model_predictions(backbone_feats, images_whwh, img, time_cond,
-                                                                         self_cond, clip_x_start=clip_denoised)
-            pred_noise, x_start = preds.pred_noise, preds.pred_x_start
-
-            if self.box_renewal:  # filter
-                score_per_image, box_per_image = outputs_class[-1][0], outputs_coord[-1][0]
-                threshold = 0.5
-                score_per_image = torch.sigmoid(score_per_image)
-                value, _ = torch.max(score_per_image, -1, keepdim=False)
-                keep_idx = value > threshold
-                num_remain = torch.sum(keep_idx)
-
-                pred_noise = pred_noise[:, keep_idx, :]
-                x_start = x_start[:, keep_idx, :]
-                img = img[:, keep_idx, :]
-            if time_next < 0:
-                img = x_start
-                continue
-
-            alpha = self.alphas_cumprod[time]
-            alpha_next = self.alphas_cumprod[time_next]
-
-            sigma = eta * ((1 - alpha / alpha_next) * (1 - alpha_next) / (1 - alpha)).sqrt()
-            c = (1 - alpha_next - sigma ** 2).sqrt()
-
-            noise = torch.randn_like(img)    ## sample noise
-
-            img = x_start * alpha_next.sqrt() + \
-                  c * pred_noise + \
-                  sigma * noise
-
-            if self.box_renewal:  # filter
-                # replenish with randn boxes
-                img = torch.cat((img, torch.randn(1, self.num_proposals - num_remain, 4, device=img.device)), dim=1)
-            if self.use_ensemble and self.sampling_timesteps > 1:
-                box_pred_per_image, scores_per_image, labels_per_image = self.inference(outputs_class[-1],
-                                                                                        outputs_coord[-1],
-                                                                                        images.image_sizes)
-                ensemble_score.append(scores_per_image)
-                ensemble_label.append(labels_per_image)
-                ensemble_coord.append(box_pred_per_image)
+        out = solver.sample()
+        self._last_nfe = solver.nfe          # NFE = head 前向次数（backbone 不计入）
+        outputs_class, outputs_coord = out["last_outputs"]
+        ensemble_score, ensemble_label, ensemble_coord = out["ensemble"] or ([], [], [])
 
         if self.use_ensemble and self.sampling_timesteps > 1:
             box_pred_per_image = torch.cat(ensemble_coord, dim=0)

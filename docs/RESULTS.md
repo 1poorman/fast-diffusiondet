@@ -84,7 +84,54 @@ backbone + 其他固定开销 ≈ 108.48 − 71.5 ≈ 37 ms
 
 ---
 
-## 4. 假设判定看板（随数据更新）
+## 4. M1 正确性测试（采样器）
+
+### 5.1 DDIM 逐 bit 等价回归
+
+`scripts/test_ddim_equiv.py`：8 张图 × `SAMPLE_STEP ∈ {1,4}` × 固定 seed，
+比对重构前（`detector.py` 内联实现）与重构后（`solvers/ddim.py`）的输出框。
+
+```
+[test_ddim_equiv] compared 16 entries, missing=0
+[test_ddim_equiv] max|delta| = 0.000e+00
+[test_ddim_equiv] PASS (max|delta| < 1e-5)
+```
+
+**完全逐 bit 一致（误差 0）**，含 Box Renewal 与 Ensemble 路径。
+
+### 5.2 解析解收敛阶（`scripts/test_convergence.py`）
+
+合成高斯去噪器 `D(x̂;σ̂) = (s²x̂ + σ̂²μ)/(s²+σ̂²)` 的闭式解
+`x̂(0) = μ + (x̂_max − μ)·s/√(s²+σ̂_max²)`，误差随步数 N 的下降斜率即收敛阶。
+
+| solver | 实测阶 | N=4 | N=8 | N=16 | N=32 | 判定 |
+|---|---|---|---|---|---|---|
+| Euler | **0.74** | 1.66e0 | 1.01e0 | 6.54e-1 | 3.49e-1 | ✅ O(h) |
+| Heun | **2.77** | 6.81e1 | 3.71e0 | 8.50e-1 | 1.85e-1 | ✅ ≥O(h²) |
+| DPMv3 order=2（真实 1000 档 schedule） | **1.79** | 2.21e2 | 2.60e2 | 9.45e1 | 5.00e0 | ✅ ≥O(h²) |
+| DPMv3 order=1（真实 1000 档） | 0.34 | 7.32e0 | 4.14e1 | 7.27e1 | 2.76e0 | 1 阶，符合预期 |
+| DPMv3 order=3（真实 1000 档） | **−0.30** | — | — | — | — | ❌ 发散 |
+
+### 5.3 🔴 关键发现：高阶多步求解器 vs 离散时间步
+
+把 schedule 的档位从 1000 加密到 **200000**（取整误差可忽略）后：
+
+| solver | 真实 1000 档 | 密集 200000 档 |
+|---|---|---|
+| DPMv3 order=3 | **−0.30（发散）** | **2.21（正常 ≥O(h²)）** |
+
+**结论**：DPM-Solver-v3 的 3 阶**对「连续 σ̂ 被取整到离散 timestep」极其敏感**。
+原因是高阶多步法要用缓存的 ε 做有限差分估计高阶导数，
+而取整让 ε(x, σ̂) 变成阶梯函数，差分被噪声放大。
+
+**直接后果与对策**
+1. M2 在 **VP + 离散 timestep** 的 baseline checkpoint 上，DPM-Solver-v3 **必须用 order=2**（实测 1.79 可用）。
+2. 这给 **M4 的 EDM 改造提供了额外理由**：把 head 的时间条件换成连续的 `c_noise = ln σ/4`
+   （`edm-main/training/networks.py:663`），天然消除取整，order=3 才可能生效。
+3. 备选缓解：对离散 timestep 做插值式时间嵌入（把 `t` 以浮点喂给 `SinusoidalPositionEmbeddings`）。
+   已登记为风险 **R14**。
+
+## 5. 假设判定看板（随数据更新）
 
 | 假设 | 内容 | 当前判定 | 依据 |
 |---|---|---|---|
