@@ -3,7 +3,7 @@
 > 配套文档：`BLUEPRINT.md`（蓝图/方案/验收标准）、`RESULTS.md`（实验数据，M2 起）
 > 更新规则：**每次动手前先加一行"进行中"，完成后改状态并勾 Gate。数字变化先落 `RESULTS.md`。**
 
-最后更新：**2026-09-23** ｜ 当前里程碑：**M0（未开始）**
+最后更新：**2026-09-24 08:56** ｜ 当前里程碑：**M0 已完成 → 待进入 M1**
 
 ---
 
@@ -11,7 +11,7 @@
 
 | 里程碑 | 状态 | 目标摘要 | 关键 Gate |
 |---|---|---|---|
-| **M0** 环境与基线建立 | ⬜ 未开始 | 接入 PLS/SDD、清理旧 bug、跑通单卡训练 | 短周期训练出非空 AP；测得 `it/s` |
+| **M0** 环境与基线建立 | ✅ **完成**（2026-09-24） | 接入 PLS/SDD、清理旧 bug、跑通单卡训练 | ✅ 全部达成：SDD baseline **AP=60.48**；it/s、latency、显存已入库 |
 | **M1** 采样器接口与正确性 | ⬜ 未开始 | `solvers/` 包：DDIM/Heun/DPMv3 | DDIM 逐 bit 一致；解析解收敛阶达标 |
 | **M2** Training-free 矩阵 | ⬜ 未开始 | E0-{DDIM,HEUN,EULER,DPP} × NFE | H1：NFE≤4 下 ≥ +0.5 AP 或 2× 提速 |
 | **M3** EMS 标定 + DPMv3 全功率 | ⬜ 未开始 | 有限差分 JVP 版 EMS | H3：EMS 相对 degenerated ≥ +0.3 AP |
@@ -42,30 +42,36 @@
 
 ---
 
-## 3. 排期估算
+## 3. 排期估算（基于 M0 实测）
 
-> ⛔ **待 M0 实测 `it/s` 后填充**。先用 SDD 短周期（~3500 iter）估算单 arm 成本，
-> 再据此决定阶段 A / 阶段 B 的 `MAX_ITER`。
+**实测基准**：训练 ≈ **2.0 it/s**（0.50 s/it，bs=2）；单次 val 评测（SDD 750 张）≈ **1.5 min**；
+训练显存峰值 **3.33 GB**（余量充足，可试 bs=4 把训练再提速约 40%）。
 
-| 里程碑 | 预估 GPU 时长 | 备注 |
+| 里程碑 | 预估 GPU 时长 | 计算依据 |
 |---|---|---|
-| M0 | 待定 | 首次短周期训练 |
-| M1 | 待定 | 主要是 CPU/单人 correctness 工作 |
-| M2 | 待定 | 纯推理，4×8×3 次 eval |
-| M3 | 待定 | EMS 计算 + 重跑 eval |
-| M4/M5 | 待定 | 训练 × N arms，最大开销项 |
-| M6 | 待定 | 仅 top-2 在 PLS 上完整训练 |
+| M0 | ✅ 已完成（≈2 h 含调试） | — |
+| M1 | ~0（无 GPU） | 采样器重构 + 解析解单测，纯 CPU |
+| M2 | **≈ 2.5 h** | 4 solver × 7 NFE × 3 seed = 84 次 eval × 1.5 min，另加 latency bench |
+| M3 | **≈ 3 h** | EMS 计算（1000 网格 × K 样本，目标 ≤2 h）+ 重跑 eval |
+| M4 | **≈ 2 h** | EDM 主 arm + A4/A5/A6 各一个 arm ≈ 4 × 30 min |
+| M5 | **≈ 3.5 h** | D ∈ {32,128,512,2048,∞} 五个 arm + A7 两个 ≈ 7 × 30 min |
+| M6 | **≈ 5 h** | PLS 12000 iter × 3 arm（baseline + top-2），≈1.7 h/arm |
+| **合计** | **≈ 16 h GPU**（不含调试往返） | |
+
+> ⚠ 上表未含调试往返与失败重跑，实际按 **1.5×** 估 → 约 **24 h GPU**。
+> 若要压缩：① bs 提到 4（训练提速 ~40%）；② M6 的 PLS `MAX_ITER` 从 12000 降到 8000；
+> ③ M2 的 seed 从 3 降到 1（省 2/3）。这三项已在 `PROGRESS.md` §7 Q5 与蓝图 §5 记录为可调项。
 
 ---
 
 ## 4. Gate 检查清单
 
 ### M0 Gate
-- [ ] `eval-only` 能跑出非空 AP
-- [ ] 训练 100 iter 无 OOM，loss 正常下降
-- [ ] SDD短周期 baseline checkpoint 产出（AP > 0）
-- [ ] `it/s` / `latency_ms(NFE=1)` / `peak_mem_GB` 三项已入 `RESULTS.md`
-- [ ] 排期估算已填表
+- [x] `eval-only` 能跑出非空 AP → **27.91**（未训练，仅迁移初始化）
+- [x] 训练 100 iter 无 OOM，loss 正常下降 → total_loss 15.85 → 8.1，max_mem 2.0 GB
+- [x] SDD 短周期 baseline checkpoint 产出 → **AP = 60.48 @ 3500 iter**
+- [x] `it/s` / `latency_ms(NFE=1)` / `peak_mem_GB` 三项已入 `RESULTS.md` → 2.0 it/s / 108.48 ms / 3.33 GB
+- [x] 排期估算已填表
 
 ### M1 Gate
 - [ ] DDIM 等价回归 `max|Δ| < 1e-5`
@@ -109,7 +115,8 @@
 
 | 假设 | 内容 | 当前判定 | 依据 |
 |---|---|---|---|
-| H1 | NFE≤4 时 2 阶+ 求解器 AP ≥ DDIM +0.5 | ⬜ 待测 | — |
+| **H0** | head forward 是延迟主项，NFE 与延迟线性相关 | ✅ **支持** | 边际 71.5 ms/step，占 NFE=1 延迟 66%（RESULTS §2） |
+| H1 | NFE≤4 时 2 阶+ 求解器 AP ≥ DDIM +0.5 | ⬜ 待测（M2） | — |
 | H2 | PFGM++ 使 NFE=2 ≈ DDIM@8 | ⬜ 待测 | — |
 | H3 | EMS 真统计量仅在 NFE≤5 有可見收益 | ⬜ 待测 | — |
 | H4 | EDM 主要提升上界而非低 NFE 效率 | ⬜ 待测 | — |
@@ -141,6 +148,32 @@
 | — | **决策 D2**：采用 COCO 迁移初始化，且所有 arm 统一同一份权重 | ✅ 已入蓝图 §6.1 / §10 |
 | — | 补充 §6.1 预训练权重加载协议（哪些层匹配/哪些必须丢弃）+ 新增 A10/A11 消融 | ✅ |
 
+### 2026-09-24（M0 实施）
+
+| 时间 | 事项 | 状态 |
+|---|---|---|
+| 00:13 | 100 iter 训练冒烟：前向/反向通过，max_mem 2.0 GB | ✅ |
+| 00:14 | 修 `CHECKPOINT_PERIOD=0` 导致的 `ZeroDivisionError` | ✅ |
+| 00:20 | **eval-only 跑通**：未训练即 AP=27.91 / AP50=81.78 | ✅ |
+| 00:33 | 提交 `34450c0`：数据集注册 + 迁移初始化 + lab 配置 | ✅ |
+| 00:39 | 测吞吐：200 iter / 172 s → **0.425 s/it**，显存 3.32 GB | ✅ |
+| 08:25 | 训练 0→1000 iter，**AP=45.94** | ✅ |
+| 08:36 | 训练 →2000 iter，**AP=50.75** | ✅ |
+| 08:46 | 训练 →3000 iter，**AP=59.49**（LR 衰减后跳涨 +8.7） | ✅ |
+| 08:54 | 训练 →3500 iter 完成，**最终 AP=60.48 / AP50=82.21** | ✅ |
+| 08:56 | 延迟基准：NFE=1/2/4 → **108.5 / 185.8 / 323.0 ms**，显存 0.71 GB | ✅ |
+| 08:56 | 产出 `docs/RESULTS.md` + `results/raw/*.csv` | ✅ |
+
+**本轮新发现**
+7. **head forward 是延迟主项**：边际每步 ≈ **71.5 ms**，占 NFE=1 总延迟的 **66%**
+   （backbone+其他仅 ~37 ms）。→ 新增假设 **H0 已判定为支持**，项目立论成立。
+8. **Windows + detectron2 的两个坑**（均已固化到代码注释与 README）：
+   ① fvcore 用 locale 编码（GBK）读 yaml → **`configs/` 下必须全 ASCII**；
+   ② `COCOEvaluator` 直接从 json 重建类别 → 评测 split **必须**用剔除 background 的干净 json。
+9. 显存余量充足（训练 3.33 GB / 6 GB），**bs 可提到 4** 换取 ~40% 训练提速。
+10. LR 衰减点（2800 iter）对短周期训练影响极大（+8.7 AP），
+    → FEP §2.3 要求所有 arm **必须共用同一 `STEPS`**，否则对比失效。
+
 **本轮关键发现（影响后续设计）**
 1. `fast-diffusiondet` 是二改版：`train.py` 硬编码 WGISD 路径、`detector_dpm3.py` 是**跑不起来的半成品**
    （缺 `multistep_predictor_update`、`forward` 调了不存在的 `ddim_sample`、`self.noise_schedule` 未赋值）。
@@ -155,13 +188,15 @@
    **`(121, 3, 32, 32)`**，是 **CIFAR-10 图像的 EMS 统计量**，与 box 数据 `(B,P,4)` 完全不兼容。
    → 不能走"直接拿来用"的捷径，M3 必须自算；这两个文件已随 `legacy/` 归档并被 `.gitignore` 排除。
 
-**下一步：进入 M0 实施**（Q1/Q4 已答复，M0 已从"未开始"转为"进行中"）
-1. `diffusiondet/data_register.py` —— 注册 `pls_*` / `sdd_*`，显式构造 `id_map={cid: cid-1}` 排除 background（16 / 7 类）
-2. `diffusiondet/weights.py` —— `resolve_pretrain()` + `strict=False` 加载并**丢弃 cls 层**（D2）
-3. `configs/lab/sdd.res50.yaml` / `configs/lab/pls.res50.yaml` —— 统一其 `NUM_CLASSES`、`IMS_PER_BATCH=2`、AMP、`OUTPUT_DIR`
-4. 跑 `--eval-only` 冒烟 + 100 iter 训练，采集 `it/s`、`latency_ms`、`peak_mem_GB`
-5. SDD 短周期训练产出 baseline checkpoint
-6. 据此填"排期估算"表
+**M0 已全部完成 ✅。下一步：进入 M1（采样器统一接口与数值正确性）**
+1. 建 `diffusiondet/solvers/`：`base.py`(denoise_fn 协议 + NFE 计数) / `schedule.py` / `ddim.py` / `heun.py` / `dpm_solver_v3.py`
+2. **DDIM 逐 bit 等价回归**：新 `ddim.py` 与 `detector.py:186-274` 同 seed 输出 `max|Δ| < 1e-5`
+3. 解析解回归单测：用已知闭式解的去噪器验证 Euler O(h) / Heun O(h²) / DPMv3 ≥ O(h²)
+4. `heun.py` 走 `edm-main/generate.py:66-176` 的通用形式，钉 `discretization='vp', schedule='vp', scaling='vp'`
+5. 新增配置项 `SOLVER / ORDER / SKIP_TYPE / DEGENERATED / STATS_DIR`
+
+> baseline 已就位：`output/lab/sdd.res50/model_final.pth`（SDD **AP=60.48**，NFE=1，108.5 ms）。
+> M2 的 training-free 对比矩阵可直接复用它。
 
 > 注：原 `train.py` 已归档至 `legacy/`（硬编码 WGISD 路径），
 > 一律使用官方入口根目录 **`train_net.py`**，数据集注册改为包内模块 + CLI 参数。

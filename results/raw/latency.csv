@@ -1,0 +1,4 @@
+tag,config,weights,sample_step,nfe,latency_ms_median,latency_ms_mean,peak_mem_gb,num_warmup,num_measure
+sdd.baseline,sdd.res50.yaml,model_final.pth,1,1,108.48,107.51,0.705,20,100
+sdd.baseline,sdd.res50.yaml,model_final.pth,2,2,185.81,183.43,0.705,20,100
+sdd.baseline,sdd.res50.yaml,model_final.pth,4,4,322.98,320.63,0.705,20,100

@@ -1,0 +1,6 @@
+tag,dataset,split,formulation,solver,nfe,iteration,AP,AP50,AP75,APs,APm,APl,weights
+sdd.f0.ddim,sdd,sdd_val,f0,ddim,1,0,27.91,81.78,14.16,0.03,12.20,40.64,none(transfer-init only)
+sdd.f0.ddim,sdd,sdd_val,f0,ddim,1,1000,45.9417,67.7609,47.3687,15.9754,31.9544,41.6784,model_0000999.pth
+sdd.f0.ddim,sdd,sdd_val,f0,ddim,1,2000,50.7468,71.3843,53.8224,16.6694,36.1498,45.1379,model_0001999.pth
+sdd.f0.ddim,sdd,sdd_val,f0,ddim,1,3000,59.4851,81.3620,63.5610,23.4939,43.9220,54.1719,model_0002999.pth
+sdd.f0.ddim,sdd,sdd_val,f0,ddim,1,3500,60.4807,82.2110,65.3325,15.0783,45.7525,55.2026,model_final.pth
