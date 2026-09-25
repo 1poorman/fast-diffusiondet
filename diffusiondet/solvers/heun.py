@@ -54,7 +54,14 @@ def heun_sample(detector, denoise_fn, batch, shape, batched_inputs, images,
         z = img / alpha
         z_prime = z + (w_next - w) * pred_noise
 
-        if order == 2:
+        # 步长守卫：cosine 调度末端 w 可达 O(10^4)，DDIM 网格首步 |Δw| 巨大。
+        # 二阶校正在超大步长上会放大 clamp 去噪器的不一致性（实测 AP 从 47 崩到 5.6），
+        # 故 |Δw| 超过 heun_max_dw 的区间退回一阶（多阶 ramp-up 的标准做法）。
+        # 实际 NFE 由 DenoiseFn 计数器如实记录。
+        heun_max_dw = getattr(detector, "heun_max_dw", 1.0)
+        do_correction = order == 2 and (w - w_next).item() <= heun_max_dw
+
+        if do_correction:
             # Heun 二阶校正：在 t_next 处再评一次 ε̂
             t_next_cond = torch.full((batch,), time_next, device=device, dtype=torch.long)
             pred_noise_next, _ = denoise_fn(z_prime * alpha_next, t_next_cond)

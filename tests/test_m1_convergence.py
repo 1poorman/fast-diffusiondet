@@ -39,6 +39,7 @@ def _fake_detector(schedule, sampling_timesteps, order=3, skip_type="logSNR"):
     d.dpm_skip_type = skip_type
     d.dpm_degenerated = True
     d.dpm_stats_dir = ""
+    d.heun_max_dw = float("inf")  # 合成高斯去噪器无 clamp 病理，关闭步长守卫以测纯 Heun 数学
     return d
 
 
