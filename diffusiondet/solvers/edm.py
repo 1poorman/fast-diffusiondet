@@ -14,6 +14,10 @@ from .base import collect_results
 
 
 def karras_sigmas(sigma_min, sigma_max, rho, num_steps, device):
+    if num_steps == 1:
+        # N=1 时 N-1=0 除零（budget1 -> k=1 的 Heun 映射会触发）：
+        # 单步网格 = [σ_max, 0]，即直接 Euler 大步 + 终点已在 D
+        return torch.tensor([sigma_max, 0.0], dtype=torch.float64, device=device)
     step_indices = torch.arange(num_steps, dtype=torch.float64, device=device)
     sig = (sigma_max ** (1 / rho) + step_indices / (num_steps - 1)
            * (sigma_min ** (1 / rho) - sigma_max ** (1 / rho))) ** rho
@@ -42,15 +46,16 @@ def edm_sample(detector, denoise_fn, batch, shape, batched_inputs, images,
         outputs_class, outputs_coord = denoise_fn.last_outputs_class, denoise_fn.last_outputs_coord
         sigma_next = sigmas[i + 1].item()
 
-        # Euler 步（σ 方向）
+        # Euler 步（σ 方向）：d = (x - D)/σ = ε̂
         d_cur = (img - x_start) / sigma_cur
         x_next = img + (sigma_next - sigma_cur) * d_cur
 
         if order == 2 and i < num_steps - 1 and (sigma_next - sigma_cur) <= heun_max:
             t_next_cond = torch.full((batch,), sigma_next, device=device, dtype=torch.float32)
+            # 修复 M5：方向向量 d 就是 ε̂（v1 误写 (x_next - ε̂·σ_next)/σ_next，
+            # 量纲混乱导致 Heun 校正项完全错误——diag 模型 edm_heun@1=0.08 的根因）
             pred_noise_next, _ = denoise_fn(x_next, t_next_cond)
-            d_next = (x_next - pred_noise_next * sigma_next) / sigma_next  # (x_next − D)/σ_next
-            x_next = img + (sigma_next - sigma_cur) * 0.5 * (d_cur + d_next)
+            x_next = img + (sigma_next - sigma_cur) * 0.5 * (d_cur + pred_noise_next)
         img = x_next
 
         if detector.use_ensemble and detector.sampling_timesteps > 1:
@@ -60,9 +65,11 @@ def edm_sample(detector, denoise_fn, batch, shape, batched_inputs, images,
             ensemble_label.append(labels_per_image)
             ensemble_coord.append(box_pred_per_image)
 
-    # 终点投影：D(x, σ_min)（EDM 官方：最后 σ=0 一步直接取 D）
-    t_final = torch.full((batch,), detector.edm_sigma_min, device=device, dtype=torch.float32)
-    _, img = denoise_fn(img, t_final)
+    # 终点投影：karras_sigmas 末位是 0，最后一步 Euler 已落到 D(x, σ_{N-1})。
+    # 修复 M5：v1 在此又做一次 D(D(x)) 双重投影，污染输出（单步时最严重）。
+    if sigmas[-1].item() > 0:  # 仅当网格末位非 0（防御未来网格改动）才补投影
+        t_final = torch.full((batch,), detector.edm_sigma_min, device=device, dtype=torch.float32)
+        _, img = denoise_fn(img, t_final)
 
     if not do_postprocess:
         return img, outputs_class, outputs_coord
