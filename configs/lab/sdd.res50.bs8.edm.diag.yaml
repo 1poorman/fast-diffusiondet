@@ -1,0 +1,10 @@
+_BASE_: "sdd.res50.bs8.edm.yaml"
+# M4 诊断实验（H4 复活判定）：单变量 = c_noise 嵌入缩放。
+# 假设：原 EDM 尺度 lnσ/4∈[-1.15,0.35] 与迁移权重的 t∈[0,999] 嵌入差 3 个量级，
+# σ 条件近乎丢失 -> 模型学不到 box。scale=250 把 c_noise 映回 ~[0,292]。
+# 判据：500 iter 时 loss 显著低于 v3 同期（~290 平台）则假设成立，继续全量训练；
+# 否则 H4 维持否定，EDM 线彻底关闭。
+MODEL:
+  DiffusionDet:
+    EDM_CNOISE_SCALE: 250.0
+OUTPUT_DIR: "output/lab/sdd.res50.bs8.edm.diag"

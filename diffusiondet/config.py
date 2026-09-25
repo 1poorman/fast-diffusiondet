@@ -70,6 +70,9 @@ def add_diffusiondet_config(cfg):
     cfg.MODEL.DiffusionDet.EDM_LOSS_SCOPE = "reg"
     # λ(σ) 封顶：σ→0 时 λ~1/σ² 发散，对 L1+GIoU 梯度爆炸，必须封顶
     cfg.MODEL.DiffusionDet.EDM_LAMBDA_MAX = 50.0
+    # M4 诊断：c_noise=lnσ/4∈[-1.15,0.35]，与迁移权重的 t∈[0,999] 嵌入差 3 个量级。
+    # 缩放后 σ=exp(4·t/scale)；1.0=原 EDM（H4 否定配置），250≈对齐 VP 域（诊断）
+    cfg.MODEL.DiffusionDet.EDM_CNOISE_SCALE = 1.0
     # 时间嵌入输入：c_noise = ln(σ)/4（A6 默认 Sinusoidal + 该缩放）
     # Karras ρ（E1-HEUN 采样网格）
     cfg.MODEL.DiffusionDet.KARRAS_RHO = 7.0

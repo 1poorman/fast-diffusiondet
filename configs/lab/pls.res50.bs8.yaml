@@ -1,0 +1,32 @@
+_BASE_: "pls.res50.yaml"
+# fast-diffusiondet v2.0 D4 训练策略 -- PLS/Plantv2（16 类，7916 训练图）。
+# bs 2->8、LR ×4（线性规则）、3 epoch 预算（与 v1 的 12000 iter@bs2 等 epoch 数）：
+# 7916/8 = 989 iter/epoch -> 3 epoch = 2967 ≈ 3000 iter，STEPS 80% = 2400。
+MODEL:
+  DiffusionDet:
+    NUM_CLASSES: 16
+    NUM_PROPOSALS: 300
+DATASETS:
+  TRAIN: ("pls_train",)
+  TEST: ("pls_val",)
+SOLVER:
+  IMS_PER_BATCH: 8
+  BASE_LR: 0.0001
+  MAX_ITER: 3000
+  STEPS: (2400,)
+  WARMUP_ITERS: 100
+  AMP:
+    ENABLED: True
+  CHECKPOINT_PERIOD: 1500
+  CLIP_GRADIENTS:
+    ENABLED: True
+    CLIP_TYPE: "full_model"
+    CLIP_VALUE: 1.0
+    NORM_TYPE: 2.0
+TEST:
+  EVAL_PERIOD: 0
+DATALOADER:
+  NUM_WORKERS: 4
+  FILTER_EMPTY_ANNOTATIONS: False
+OUTPUT_DIR: "output/lab/pls.res50.bs8"
+VERSION: 2

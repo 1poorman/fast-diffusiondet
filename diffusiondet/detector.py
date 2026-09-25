@@ -122,6 +122,7 @@ class DiffusionDet(nn.Module):
                     sd = json.load(f)["sigma_data_global"]
             self.edm_sigma_data = float(sd)
             self.edm_lambda_max = cfg.MODEL.DiffusionDet.EDM_LAMBDA_MAX
+            self.edm_cnoise_scale = cfg.MODEL.DiffusionDet.EDM_CNOISE_SCALE
 
         self.register_buffer('betas', betas)
         self.register_buffer('alphas_cumprod', alphas_cumprod)
@@ -206,7 +207,8 @@ class DiffusionDet(nn.Module):
         """
         if sigma.dim() == 0:
             sigma = sigma.reshape(1).expand(x.shape[0])
-        c_noise = (sigma.float().log() / 4.0)  # (B,)
+        # 与训练加噪侧同一缩放（见 prepare_diffusion_concat EDM 分支）
+        c_noise = (sigma.float().log() / 4.0 * self.edm_cnoise_scale)  # (B,)
         x_in = torch.clamp(x, min=-1 * self.scale, max=self.scale)
 
         cs = self.edm_c_skip(sigma)  # (B,)
@@ -427,8 +429,8 @@ class DiffusionDet(nn.Module):
             edm_sigmas = None
             if self.formulation == "edm":
                 # prepare_targets 逐图调用 prepare_diffusion_concat(EDM 分支)，
-                # t = c_noise = lnσ/4（每图独立 σ）-> σ = exp(4·c_noise)
-                edm_sigmas = (t.float() * 4.0).exp()  # (B,)
+                # t = lnσ/4·scale（每图独立 σ）-> σ = exp(4·t/scale)
+                edm_sigmas = (t.float() * 4.0 / self.edm_cnoise_scale).exp()  # (B,)
 
             if self.formulation == "edm":
                 # head 输入必须与推理路径 model_predictions_edm 完全一致：
@@ -568,7 +570,9 @@ class DiffusionDet(nn.Module):
             sigma = torch.randn(1, device=self.device) * self.edm_p_std + self.edm_p_mean
             sigma = sigma.exp().clamp(self.edm_sigma_min, self.edm_sigma_max)  # (1,)
             x = x_start + sigma * noise
-            t = (sigma.log() / 4.0).float()  # c_noise
+            # c_noise = lnσ/4 × scale：M4 诊断开关——原 EDM 尺度 [-1.15,0.35] 与
+            # 迁移权重的 t∈[0,999] 嵌入差 3 个量级；scale≈250 对齐 VP 域
+            t = (sigma.log() / 4.0 * self.edm_cnoise_scale).float()
             return x, noise, t, x_start, sigma
 
         # noise sample
