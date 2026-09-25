@@ -6,6 +6,7 @@ from .base import DenoiseFn, collect_results
 from .schedule import VPSchedule, build_time_pairs
 from .ddim import ddim_sample
 from .heun import heun_sample
+from .edm import edm_sample
 from .dpm_solver_v3 import (
     DPM_Solver_v3,
     NoiseScheduleVP,
@@ -40,6 +41,8 @@ register_sampler("ddim")(ddim_sample)
 register_sampler("heun")(lambda *a, **kw: heun_sample(*a, order=2, **kw))
 register_sampler("euler")(lambda *a, **kw: heun_sample(*a, order=1, **kw))
 register_sampler("dpm_v3")(dpm_v3_sample)
+register_sampler("edm_heun")(lambda *a, **kw: edm_sample(*a, order=2, **kw))
+register_sampler("edm_euler")(lambda *a, **kw: edm_sample(*a, order=1, **kw))
 
 
 def run_sampler(detector, batched_inputs, backbone_feats, images_whwh, images,
@@ -48,6 +51,7 @@ def run_sampler(detector, batched_inputs, backbone_feats, images_whwh, images,
 
     依据 detector.solver_name 分发；denoise_fn 闭包绑定 backbone 特征与
     images_whwh，ODE 类 solver 不再直接接触这些量（蓝图 §3.1）。
+    FORMULATION=edm 时 solver 名可带 edm_ 前缀（E1 矩阵）。
     """
     name = detector.solver_name
     if name not in SAMPLER_REGISTRY:

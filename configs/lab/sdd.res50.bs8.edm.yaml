@@ -1,0 +1,5 @@
+_BASE_: "sdd.res50.bs8.yaml"
+MODEL:
+  DiffusionDet:
+    FORMULATION: "edm"
+OUTPUT_DIR: "output/lab/sdd.res50.bs8.edm"

@@ -6,6 +6,8 @@
 #
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import math
+import json
+import os
 import random
 from typing import List
 from collections import namedtuple
@@ -105,6 +107,21 @@ class DiffusionDet(nn.Module):
         self.dpm_stats_dir = cfg.MODEL.DiffusionDet.STATS_DIR
         self.box_renewal = cfg.MODEL.DiffusionDet.BOX_RENEWAL
         self.use_ensemble = cfg.MODEL.DiffusionDet.USE_ENSEMBLE
+        # M4: EDM formulation (F1)
+        self.formulation = cfg.MODEL.DiffusionDet.FORMULATION
+        if self.formulation == "edm":
+            self.edm_p_mean = cfg.MODEL.DiffusionDet.P_MEAN
+            self.edm_p_std = cfg.MODEL.DiffusionDet.P_STD
+            self.edm_sigma_min = cfg.MODEL.DiffusionDet.SIGMA_MIN
+            self.edm_sigma_max = cfg.MODEL.DiffusionDet.SIGMA_MAX
+            self.edm_karras_rho = cfg.MODEL.DiffusionDet.KARRAS_RHO
+            sd = cfg.MODEL.DiffusionDet.SIGMA_DATA
+            if not sd:  # 从标定文件读（训练分布 = GT + 占位混合，见 calib 脚本 note）
+                sd_path = os.path.join(os.path.dirname(__file__), "sigma_data.json")
+                with open(sd_path) as f:
+                    sd = json.load(f)["sigma_data_global"]
+            self.edm_sigma_data = float(sd)
+            self.edm_lambda_max = cfg.MODEL.DiffusionDet.EDM_LAMBDA_MAX
 
         self.register_buffer('betas', betas)
         self.register_buffer('alphas_cumprod', alphas_cumprod)
@@ -167,6 +184,60 @@ class DiffusionDet(nn.Module):
         self.normalizer = lambda x: (x - pixel_mean) / pixel_std
         self.to(self.device)
 
+    # ---- EDM preconditioning coefficients (Karras et al. 2022, eq. 127) ----
+    def edm_c_skip(self, sigma):
+        sd2 = self.edm_sigma_data ** 2
+        return sd2 / (sigma ** 2 + sd2)
+
+    def edm_c_out(self, sigma):
+        sd = self.edm_sigma_data
+        return sigma * sd / torch.sqrt(sigma ** 2 + sd ** 2)
+
+    def edm_c_in(self, sigma):
+        sd = self.edm_sigma_data
+        return 1.0 / torch.sqrt(sigma ** 2 + sd ** 2)
+
+    def model_predictions_edm(self, backbone_feats, images_whwh, x, sigma):
+        """F1 推理：D(x;σ) = c_skip·x + c_out·F(c_in·x, c_noise)。
+
+        x: (B,P,4) σ 空间噪声框（norm [-scale,scale] 域，head 输入前 clamp）。
+        返回与 model_predictions 同构的 (ModelPrediction, outputs_class, outputs_coord)，
+        其中 pred_noise = (x − D)/σ、x_start = D（均 norm 域、已 clamp）。
+        """
+        if sigma.dim() == 0:
+            sigma = sigma.reshape(1).expand(x.shape[0])
+        c_noise = (sigma.float().log() / 4.0)  # (B,)
+        x_in = torch.clamp(x, min=-1 * self.scale, max=self.scale)
+
+        cs = self.edm_c_skip(sigma)  # (B,)
+        co = self.edm_c_out(sigma)
+        ci = self.edm_c_in(sigma)
+
+        # head 输入：c_in·x 走同一条 norm->xyxy 变换（c_in<1，值域收缩，合法）
+        x_boxes = (x_in * ci[:, None, None] / self.scale + 1) / 2.
+        x_boxes = box_cxcywh_to_xyxy(x_boxes) * images_whwh[:, None, :]
+        outputs_class, outputs_coord = self.head(backbone_feats, x_boxes, c_noise, None)
+
+        def to_norm(abs_xyxy):
+            cxcywh = box_xyxy_to_cxcywh(abs_xyxy / images_whwh[:, None, :])
+            return (cxcywh * 2. - 1.) * self.scale
+
+        def to_abs(norm_cxcywh):
+            cxcywh = ((norm_cxcywh / self.scale) + 1) / 2.
+            # w/h 强制为正（同训练预条件，防无序 xyxy）
+            cxcywh = torch.cat([cxcywh[..., :2],
+                                cxcywh[..., 2:].clamp(min=1e-4)], dim=-1)
+            return box_cxcywh_to_xyxy(cxcywh) * images_whwh[:, None, :]
+
+        outputs_coord = [to_abs(torch.clamp(
+            torch.nan_to_num(cs[:, None, None] * x_in + co[:, None, None] * to_norm(c)),
+            min=-1 * self.scale, max=self.scale)) for c in outputs_coord]
+
+        x_start = to_norm(outputs_coord[-1])
+        pred_noise = (x_in - x_start) / sigma[:, None, None]
+        preds = ModelPrediction(pred_noise, x_start)
+        return preds, outputs_class, outputs_coord
+
     def predict_noise_from_start(self, x_t, t, x0):
         return (
                 (extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t - x0) /
@@ -181,10 +252,16 @@ class DiffusionDet(nn.Module):
         """
         from .solvers import DenoiseFn
 
-        def predict_fn(x, t):
-            preds, outputs_class, outputs_coord = self.model_predictions(
-                backbone_feats, images_whwh, x, t, None, True)
-            return preds, outputs_class, outputs_coord
+        if self.formulation == "edm":
+            def predict_fn(x, t):
+                preds, outputs_class, outputs_coord = self.model_predictions_edm(
+                    backbone_feats, images_whwh, x, t)
+                return preds, outputs_class, outputs_coord
+        else:
+            def predict_fn(x, t):
+                preds, outputs_class, outputs_coord = self.model_predictions(
+                    backbone_feats, images_whwh, x, t, None, True)
+                return preds, outputs_class, outputs_coord
 
         return DenoiseFn(predict_fn)
 
@@ -347,12 +424,61 @@ class DiffusionDet(nn.Module):
             t = t.squeeze(-1)
             x_boxes = x_boxes * images_whwh[:, None, :]
 
+            edm_sigmas = None
+            if self.formulation == "edm":
+                # prepare_targets 逐图调用 prepare_diffusion_concat(EDM 分支)，
+                # t = c_noise = lnσ/4（每图独立 σ）-> σ = exp(4·c_noise)
+                edm_sigmas = (t.float() * 4.0).exp()  # (B,)
+
             outputs_class, outputs_coord = self.head(features, x_boxes, t, None)
+
+            if self.formulation == "edm":
+                # F1 预条件（norm 空间）：D = c_skip·x_t + c_out·F。
+                # head 输入/输出都是 abs xyxy；x_t norm 值由 x_boxes 反推。
+                def to_norm(abs_xyxy):
+                    cxcywh = box_xyxy_to_cxcywh(abs_xyxy / images_whwh[:, None, :])
+                    return (cxcywh * 2. - 1.) * self.scale
+
+                def to_abs(norm_cxcywh):
+                    cxcywh = ((norm_cxcywh / self.scale) + 1) / 2.
+                    # w/h 强制为正：逐坐标 clamp 不保证 wh>0，负宽高会产生
+                    # 无序 xyxy 触发 matcher 的 GIoU 断言（E1 训练 iter36 实测）
+                    cxcywh = torch.cat([cxcywh[..., :2],
+                                        cxcywh[..., 2:].clamp(min=1e-4)], dim=-1)
+                    return box_cxcywh_to_xyxy(cxcywh) * images_whwh[:, None, :]
+
+                x_t_norm = to_norm(x_boxes)  # (B,P,4)
+                cs = self.edm_c_skip(edm_sigmas)  # (B,)
+                co = self.edm_c_out(edm_sigmas)
+
+                def precondition(abs_f):
+                    f_norm = torch.nan_to_num(to_norm(abs_f))
+                    # D 是 x0 预测，合法域 [-scale,scale]；clamp 防止 σ 大时
+                    # c_skip·x_t 项把 D 拉出域产生无序 xyxy（matcher GIoU 断言）。
+                    # nan_to_num：偶发 NaN 激活会穿透过 clamp（NaN>NaN=False），
+                    # 必须先消毒（其梯度为 0，安全跳过该条目）
+                    x_t_clean = torch.nan_to_num(x_t_norm)
+                    d_norm = torch.clamp(
+                        cs[:, None, None] * x_t_clean + co[:, None, None] * f_norm,
+                        min=-1 * self.scale, max=self.scale)
+                    return to_abs(d_norm)
+
+                outputs_coord = [precondition(c) for c in outputs_coord]
+
             output = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
 
             if self.deep_supervision:
                 output['aux_outputs'] = [{'pred_logits': a, 'pred_boxes': b}
                                          for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
+
+            if self.formulation == "edm":
+                # A4: λ(σ) per-image 只加权 reg 分支（loss_boxes 内按 edm_loss_scale 乘）。
+                # λ=1/σ² 项在小 σ 时达 1e3~1e4，对 L1+GIoU 会梯度爆炸（AMP fp16
+                # 下 NaN -> matcher 断言，E1 首训实测）；封顶 EDM_LAMBDA_MAX。
+                lam = (edm_sigmas ** 2 + self.edm_sigma_data ** 2) / (edm_sigmas * self.edm_sigma_data) ** 2
+                lam = lam.clamp(max=self.edm_lambda_max)
+                for tg, l_i in zip(targets, lam):
+                    tg["edm_loss_scale"] = l_i.detach()
 
             loss_dict = self.criterion(output, targets)
             weight_dict = self.criterion.weight_dict
@@ -421,6 +547,15 @@ class DiffusionDet(nn.Module):
 
         x_start = (x_start * 2. - 1.) * self.scale
 
+        if self.formulation == "edm":
+            # F1: sigma ~ LogNormal(P_mean, P_std) 截断；x_t = x0 + sigma*eps（VE）
+            # t 输入 = c_noise = ln(sigma)/4（连续，进 sinusoidal 嵌入）
+            sigma = torch.randn(1, device=self.device) * self.edm_p_std + self.edm_p_mean
+            sigma = sigma.exp().clamp(self.edm_sigma_min, self.edm_sigma_max)  # (1,)
+            x = x_start + sigma * noise
+            t = (sigma.log() / 4.0).float()  # c_noise
+            return x, noise, t, x_start, sigma
+
         # noise sample
         x = self.q_sample(x_start=x_start, t=t, noise=noise)
 
@@ -443,7 +578,11 @@ class DiffusionDet(nn.Module):
             gt_classes = targets_per_image.gt_classes
             gt_boxes = targets_per_image.gt_boxes.tensor / image_size_xyxy
             gt_boxes = box_xyxy_to_cxcywh(gt_boxes)
-            d_boxes, d_noise, d_t = self.prepare_diffusion_concat(gt_boxes)
+            d = self.prepare_diffusion_concat(gt_boxes)
+            if self.formulation == "edm":
+                d_boxes, d_noise, d_t, _, _ = d  # x_start/sigma 在 forward 内由 c_noise 反推
+            else:
+                d_boxes, d_noise, d_t = d
             diffused_boxes.append(d_boxes)
             noises.append(d_noise)
             ts.append(d_t)

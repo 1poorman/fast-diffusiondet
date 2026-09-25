@@ -191,13 +191,36 @@ class SetCriterionDynamicK(nn.Module):
             target_boxes_abs_xyxy = torch.cat(tgt_box_xyxy_list)
             num_boxes = src_boxes.shape[0]
 
+            # M4 A4: EDM lambda(sigma) per-image weighting（仅 reg 分支）。
+            # src_* / tgt_* 按 batch 顺序 cat 且跳过 gt_multi_idx 为空的图，
+            # scale_vec 必须按完全相同的条件构建才对齐。
+            scales = []
+            for batch_idx in range(batch_size):
+                gt_multi_idx_i = indices[batch_idx][1]
+                valid_query_i = indices[batch_idx][0]
+                if len(gt_multi_idx_i) == 0:
+                    continue
+                # indices[b][0] 可能是 bool mask（取 sum）或索引（取 len），
+                # 与 bz_src_boxes[valid_query] 选中的条目数一致
+                n_i = int(valid_query_i.sum()) if (torch.is_tensor(valid_query_i) and valid_query_i.dtype == torch.bool) else len(valid_query_i)
+                s_i = targets[batch_idx].get("edm_loss_scale", None)
+                scales.append(torch.full((n_i,), float(s_i) if s_i is not None else 1.0,
+                                         device=src_boxes.device))
+            scale_vec = torch.cat(scales) if scales else None
+            assert scale_vec is None or scale_vec.shape[0] == src_boxes.shape[0], \
+                f"scale_vec {scale_vec.shape} vs src {src_boxes.shape}"
+
             losses = {}
             # require normalized (x1, y1, x2, y2)
             loss_bbox = F.l1_loss(src_boxes_norm, box_cxcywh_to_xyxy(target_boxes), reduction='none')
+            if scale_vec is not None:
+                loss_bbox = loss_bbox * scale_vec[:, None]
             losses['loss_bbox'] = loss_bbox.sum() / num_boxes
 
             # loss_giou = giou_loss(box_ops.box_cxcywh_to_xyxy(src_boxes), box_ops.box_cxcywh_to_xyxy(target_boxes))
             loss_giou = 1 - torch.diag(box_ops.generalized_box_iou(src_boxes, target_boxes_abs_xyxy))
+            if scale_vec is not None:
+                loss_giou = loss_giou * scale_vec
             losses['loss_giou'] = loss_giou.sum() / num_boxes
         else:
             losses = {'loss_bbox': outputs['pred_boxes'].sum() * 0,

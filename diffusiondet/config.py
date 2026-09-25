@@ -56,6 +56,24 @@ def add_diffusiondet_config(cfg):
     # Inference
     cfg.MODEL.DiffusionDet.USE_NMS = True
 
+    # ---------------- M4: EDM training formulation (F1) ----------------
+    # 训练范式：vp（原 VP-DDPM）| edm（Karras 预条件 + LogNormal σ + λ(σ) reg 加权）
+    cfg.MODEL.DiffusionDet.FORMULATION = "vp"
+    # EDM σ 采样：sigma ~ exp(N(P_MEAN, P_STD))，截断 [SIGMA_MIN, SIGMA_MAX]
+    cfg.MODEL.DiffusionDet.P_MEAN = -1.2
+    cfg.MODEL.DiffusionDet.P_STD = 1.2
+    cfg.MODEL.DiffusionDet.SIGMA_MIN = 0.01
+    cfg.MODEL.DiffusionDet.SIGMA_MAX = 4.0
+    # sigma_data：留空则读 diffusiondet/sigma_data.json 的 gt_only_global
+    cfg.MODEL.DiffusionDet.SIGMA_DATA = 0.0
+    # λ(σ) 加权范围：reg（A4 默认，L1+GIoU）| all（cls 也乘，不推荐）
+    cfg.MODEL.DiffusionDet.EDM_LOSS_SCOPE = "reg"
+    # λ(σ) 封顶：σ→0 时 λ~1/σ² 发散，对 L1+GIoU 梯度爆炸，必须封顶
+    cfg.MODEL.DiffusionDet.EDM_LAMBDA_MAX = 50.0
+    # 时间嵌入输入：c_noise = ln(σ)/4（A6 默认 Sinusoidal + 该缩放）
+    # Karras ρ（E1-HEUN 采样网格）
+    cfg.MODEL.DiffusionDet.KARRAS_RHO = 7.0
+
     # ---------------- M1: sampler abstraction (diffusiondet/solvers/) ----------------
     # 推理采样器：ddim | euler | heun | dpm_v3
     cfg.MODEL.DiffusionDet.SOLVER = "ddim"
@@ -63,6 +81,9 @@ def add_diffusiondet_config(cfg):
     cfg.MODEL.DiffusionDet.ORDER = 3
     # DPM-Solver-v3 时间步策略：logSNR | time_uniform | time_quadratic | edm
     cfg.MODEL.DiffusionDet.SKIP_TYPE = "logSNR"
+    # Heun 二阶校正的步长守卫：|Δw| = |σ/α| 差超过该值的区间退回一阶
+    # （cosine 调度末端 w~2e4，不设守卫二阶校正会灾难性发散）
+    cfg.MODEL.DiffusionDet.HEUN_MAX_DW = 1.0
     # True: l=1,s=0,b=0（≈DPM-Solver++），不需要 EMS 统计量
     cfg.MODEL.DiffusionDet.DEGENERATED = True
     # EMS 统计量目录（M3 产出 l.npz/sb.npz；留空且 DEGENERATED=False 会报错）

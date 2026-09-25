@@ -1,0 +1,20 @@
+{
+  "scale": 2.0,
+  "num_proposals": 300,
+  "frac_gt": 0.00755,
+  "sigma_data_per_coord": [
+    0.18789824843406677,
+    0.18456748127937317,
+    0.20466360449790955,
+    0.19572988152503967
+  ],
+  "sigma_data_global": 0.1933702975511551,
+  "sigma_data_gt_only_per_coord": [
+    0.8723974823951721,
+    0.7978543639183044,
+    0.9336214065551758,
+    1.0150160789489746
+  ],
+  "sigma_data_gt_only_global": 0.9082338809967041,
+  "note": "\u8bad\u7ec3 x_start \u662f\u7eaf GT repeat\uff08prepare_diffusion_concat \u65e0\u5360\u4f4d\uff09\uff0cEDM sigma_data \u53d6 sigma_data_gt_only_global\uff1b\u542b\u5360\u4f4d\u6df7\u5408\u7248\u4ec5\u4f5c\u53c2\u8003\u3002per-coord order: cx, cy, w, h"
+}

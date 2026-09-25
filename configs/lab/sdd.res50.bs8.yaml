@@ -1,0 +1,41 @@
+_BASE_: "../Base-DiffusionDet.yaml"
+
+# fast-diffusiondet / v2.0 D4 training config -- SDD/Strawberry, 7 thing classes.
+# bs 2->8, LR x4 (linear rule), 8 epoch budget (FEP #5: budget in img-passes).
+# 1750 imgs / bs8 = 219 iter/epoch -> 8 epoch = 1750 iter.
+# STEPS at 80% of budget (mirrors v1.0 2800/3500 ratio).
+# This is the config for ALL M4/M5 training arms (E0-CTRL, E1-*, E2-*).
+MODEL:
+  DiffusionDet:
+    NUM_CLASSES: 7
+    NUM_PROPOSALS: 300
+  WEIGHTS: ""              # transfer init via train_net.build_model -> weights.load_transfer_weights
+
+DATASETS:
+  TRAIN: ("sdd_train",)
+  TEST: ("sdd_val",)
+
+SOLVER:
+  IMS_PER_BATCH: 8         # D4: was 2 on 3060
+  BASE_LR: 0.0001          # D4: x4 linear rule (was 2.5e-5)
+  MAX_ITER: 1750           # 8 epoch @ bs=8
+  STEPS: (1400,)           # 80% decay point
+  WARMUP_ITERS: 100
+  AMP:
+    ENABLED: True
+  CHECKPOINT_PERIOD: 875   # mid + final
+  CLIP_GRADIENTS:
+    ENABLED: True
+    CLIP_TYPE: "full_model"
+    CLIP_VALUE: 1.0
+    NORM_TYPE: 2.0
+
+TEST:
+  EVAL_PERIOD: 875         # every 4 epoch
+
+DATALOADER:
+  NUM_WORKERS: 4
+  FILTER_EMPTY_ANNOTATIONS: False
+
+OUTPUT_DIR: "output/lab/sdd.res50.bs8"
+VERSION: 2
