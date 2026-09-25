@@ -18,36 +18,31 @@ import os
 
 
 class NoiseScheduleEDM:
+    """F1 EDM：σ 空间（x = x0 + σε），marginal_alpha=1、marginal_std=t=σ。
+
+    M4 补充 T/total_N 属性以兼容 DPM_Solver_v3.__init__ 的默认时间范围逻辑。
+    """
+
+    def __init__(self, sigma_min=0.01, sigma_max=4.0):
+        self.T = sigma_max
+        self.sigma_min = sigma_min
+        self.total_N = 1  # 仅作占位；DPM_Solver_v3 中 t_0 默认 1/total_N，须显式传 t_end
+        self.schedule = "edm"
+
     def marginal_log_mean_coeff(self, t):
-        """
-        Compute log(alpha_t) of a given continuous-time label t in [0, T].
-        """
-        return torch.zeros_like(t).to(torch.float64)
+        return torch.zeros_like(t).to(torch.float32)
 
     def marginal_alpha(self, t):
-        """
-        Compute alpha_t of a given continuous-time label t in [0, T].
-        """
-        return torch.ones_like(t).to(torch.float64)
+        return torch.ones_like(t).to(torch.float32)
 
     def marginal_std(self, t):
-        """
-        Compute sigma_t of a given continuous-time label t in [0, T].
-        """
-        return t.to(torch.float64)
+        return t.to(torch.float32)
 
     def marginal_lambda(self, t):
-        """
-        Compute lambda_t = log(alpha_t) - log(sigma_t) of a given continuous-time label t in [0, T].
-        """
-
-        return -torch.log(t).to(torch.float64)
+        return -torch.log(t).to(torch.float32)
 
     def inverse_lambda(self, lamb):
-        """
-        Compute the continuous-time label t in [0, T] of a given half-logSNR lambda_t.
-        """
-        return torch.exp(-lamb).to(torch.float64)
+        return torch.exp(-lamb).to(torch.float32)
 
 
 class NoiseScheduleVP:
@@ -155,13 +150,12 @@ class NoiseScheduleVP:
                 log_alphas = 0.5 * torch.log(alphas_cumprod)
             self.total_N = len(log_alphas)
             self.T = 1.0
-            self.t_array = torch.linspace(0.0, 1.0, self.total_N + 1)[1:].reshape((1, -1))
-            self.log_alpha_array = log_alphas.reshape(
-                (
-                    1,
-                    -1,
-                )
-            )
+            # M3 latency 优化：统一 float32（原 betas 常为 float64，拖慢且易在
+            # mixed dtype 下出错）；interpolate_fn 换成 searchsorted 分段线性
+            # （数学等价，含端点线性外推），去掉每步的 sort 开销。
+            log_alphas = log_alphas.float()
+            self.t_array = torch.linspace(0.0, 1.0, self.total_N + 1)[1:].reshape((1, -1)).float()
+            self.log_alpha_array = log_alphas.reshape((1, -1))
         else:
             self.total_N = 1000
             self.beta_0 = continuous_beta_0
@@ -189,15 +183,30 @@ class NoiseScheduleVP:
         Compute log(alpha_t) of a given continuous-time label t in [0, T].
         """
         if self.schedule == "discrete":
-            return interpolate_fn(
-                t.reshape((-1, 1)), self.t_array.to(t.device), self.log_alpha_array.to(t.device)
-            ).reshape((-1))
+            return self._interp_fast(
+                t.reshape(-1).to(self.log_alpha_array.dtype), self.t_array, self.log_alpha_array
+            )
         elif self.schedule == "linear":
             return -0.25 * t**2 * (self.beta_1 - self.beta_0) - 0.5 * t * self.beta_0
         elif self.schedule == "cosine":
             log_alpha_fn = lambda s: torch.log(torch.cos((s + self.cosine_s) / (1.0 + self.cosine_s) * math.pi / 2.0))
             log_alpha_t = log_alpha_fn(t) - self.cosine_log_alpha_0
             return log_alpha_t
+
+    def _interp_fast(self, x, xp, yp):
+        """分段线性插值（含端点线性外推），与 interpolate_fn 数学等价。
+
+        x: (M,), xp/yp: (1,K)。searchsorted 替代 sort，DPMv3 每步多次调用
+        marginal_* 的主要开销即在此。
+        """
+        xp_f = xp.reshape(-1).to(x.device)
+        yp_f = yp.reshape(-1).to(x.device)
+        idx = torch.searchsorted(xp_f, x)
+        i0 = (idx - 1).clamp(0, len(xp_f) - 2)
+        i1 = i0 + 1
+        x0, x1 = xp_f[i0], xp_f[i1]
+        w = (x - x0) / (x1 - x0)
+        return yp_f[i0] * (1 - w) + yp_f[i1] * w
 
     def marginal_alpha(self, t):
         """
@@ -229,10 +238,10 @@ class NoiseScheduleVP:
             return tmp / (torch.sqrt(Delta) + self.beta_0) / (self.beta_1 - self.beta_0)
         elif self.schedule == "discrete":
             log_alpha = -0.5 * torch.logaddexp(torch.zeros((1,)).to(lamb.device), -2.0 * lamb)
-            t = interpolate_fn(
-                log_alpha.reshape((-1, 1)),
-                torch.flip(self.log_alpha_array.to(lamb.device), [1]),
-                torch.flip(self.t_array.to(lamb.device), [1]),
+            t = self._interp_fast(
+                log_alpha.reshape(-1),
+                torch.flip(self.log_alpha_array, [1]).to(lamb.device),
+                torch.flip(self.t_array, [1]).to(lamb.device),
             )
             return t.reshape((-1,))
         else:
@@ -514,19 +523,20 @@ class DPM_Solver_v3:
             l = np.ones_like(l)
             s = np.zeros_like(s)
             b = np.zeros_like(b)
-        # 统一压成 1-dim (N+1,)：原版 (N+1,1,1,1) 尾维与 3 维 x=(B,P,4)
-        # 广播会错误升维（原版面向 4 维图像数据未暴露）。per_coord 统计量留待 M3。
-        l = np.asarray(l).reshape(l.shape[0], -1)
-        s = np.asarray(s).reshape(s.shape[0], -1)
-        b = np.asarray(b).reshape(b.shape[0], -1)
-        assert l.shape[1] == 1 and s.shape[1] == 1 and b.shape[1] == 1, \
-            "M1 only supports scalar statistics; per_coord comes with M3"
-        l, s, b = l[:, 0], s[:, 0], b[:, 0]
+        l, s, b = np.asarray(l), np.asarray(s), np.asarray(b)
+        # 形状归一：M3 支持 scalar (N+1,) 与 per_coord (N+1,P,4) 两种。
+        # 原版 (N+1,1,1,1) 尾维与 3 维 x=(B,P,4) 广播会错误升维，压成 1 维。
+        if l.ndim == 4 and l.shape[2:] == (1, 1):
+            l, s, b = l[:, :, 0, 0], s[:, :, 0, 0], b[:, :, 0, 0]
+        assert l.ndim in (1, 3), f"unsupported statistics ndim {l.ndim}"
+        assert l.shape == s.shape == b.shape, "l/s/b shape mismatch"
         self.statistics_steps = l.shape[0] - 1
         ts = noise_schedule.marginal_lambda(
             self.get_time_steps("logSNR", t_T, t_0, self.statistics_steps, "cpu")
         ).numpy()
-        self.ts = torch.from_numpy(np.asarray(ts)).to(self.device).reshape(-1)
+        # ts 尾维与统计量对齐（scalar -> (N+1,)，per_coord -> (N+1,1,1)）
+        ts = np.asarray(ts).reshape((ts.shape[0],) + (1,) * (l.ndim - 1))
+        self.ts = torch.from_numpy(ts).to(self.device)
         self.lambda_T = self.ts[0].cpu().item()
         self.lambda_0 = self.ts[-1].cpu().item()
         z = np.zeros_like(l)
@@ -804,7 +814,11 @@ class DPM_Solver_v3:
                     # reshape(())：marginal_std 对 0-dim 输入返回 (1,)，需压成标量
                     # 避免 (1,) 与 (B,P,4) 广播出 (1,1,P,4)
                     sigma_t = self.noise_schedule.marginal_std(cached_time[-1]).reshape(())
-                    l_t = self.l[cached_index[-1]].reshape(())
+                    # l_t：scalar 统计量 (N+1,) 压标量；per_coord (N+1,P,4) 保持，
+                    # (P,4) 与 (B,P,4) 广播天然正确
+                    l_t = self.l[cached_index[-1]]
+                    if l_t.dim() == 1:
+                        l_t = l_t.reshape(())
                     N_old = sigma_t * cached_model_output[-1] - l_t * cached_x[-1]
                     cached_x[-1] = x_new
                     cached_model_output[-1] = (N_old + l_t * cached_x[-1]) / sigma_t
@@ -909,12 +923,50 @@ def dpm_v3_sample(detector, denoise_fn, batch, shape, batched_inputs, images,
     """
     from .base import collect_results
 
-    ns = NoiseScheduleVP(schedule="discrete", betas=detector.betas)
-    num_t = detector.num_timesteps
     device = detector.device
     use_ens = detector.use_ensemble and detector.sampling_timesteps > 1
     # 每次 head forward 的 (cls, coord) 记录，用于 ensemble（DDIM 语义：最后一步不入 ensemble）
     step_records = []
+
+    if getattr(detector, "formulation", "vp") == "edm":
+        # F1：σ 空间（NoiseScheduleEDM），t_input=σ 连续、无 snap；
+        # EMS 统计量按 VP λ 网格标定，EDM 域暂用 degenerated（≈DPM-Solver++ on EDM）。
+        ns = NoiseScheduleEDM(detector.edm_sigma_min, detector.edm_sigma_max)
+
+        def model(x, t_input, cond=None):
+            sigma = t_input.detach().float().reshape(-1).expand(x.shape[0])
+            pred_noise, x0 = denoise_fn(x, sigma)
+            step_records.append((denoise_fn.last_outputs_class, denoise_fn.last_outputs_coord))
+            return x0
+
+        model_fn = model_wrapper(model, ns, model_type="x_start")
+        solver = DPM_Solver_v3(
+            statistics_dir=None,
+            noise_schedule=ns,
+            steps=detector.sampling_timesteps,
+            skip_type=detector.dpm_skip_type,
+            degenerated=True,
+            device=device,
+            t_start=detector.edm_sigma_max,
+            t_end=detector.edm_sigma_min,
+        )
+        x_T = noise if noise is not None else torch.randn(shape, device=device) * detector.edm_sigma_max
+        x = solver.sample(
+            x_T, model_fn,
+            order=detector.dpm_order,
+            p_pseudo=False,
+            use_corrector=True,
+            c_pseudo=True,
+            lower_order_final=True,
+        )
+        outputs_class, outputs_coord = denoise_fn.last_outputs_class, denoise_fn.last_outputs_coord
+        if not do_postprocess:
+            return x, outputs_class, outputs_coord
+        return collect_results(detector, batched_inputs, images, [], [], [],
+                               outputs_class, outputs_coord, do_postprocess)
+
+    ns = NoiseScheduleVP(schedule="discrete", betas=detector.betas)
+    num_t = detector.num_timesteps
 
     def model(x, t_input, cond=None):
         t = t_input.detach().float().round().long().clamp(0, num_t - 1)
