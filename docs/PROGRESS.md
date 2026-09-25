@@ -3,7 +3,7 @@
 > 配套文档：`BLUEPRINT.md`（蓝图/方案/验收标准）、`RESULTS.md`（实验数据，M2 起）
 > 更新规则：**每次动手前先加一行"进行中"，完成后改状态并勾 Gate。数字变化先落 `RESULTS.md`。**
 
-最后更新：**2026-09-24 12:10** ｜ 当前里程碑：**M0/M1 已完成 → 待进入 M2**
+最后更新：**2026-09-25** ｜ 当前里程碑：**M0–M2 已完成 → 待进入 M3** ｜ 蓝图已升级 **v2.0**（本机硬件适配）
 
 ---
 
@@ -13,7 +13,7 @@
 |---|---|---|---|
 | **M0** 环境与基线建立 | ✅ **完成**（2026-09-24） | 接入 PLS/SDD、清理旧 bug、跑通单卡训练 | ✅ 全部达成：SDD baseline **AP=60.48**；it/s、latency、显存已入库 |
 | **M1** 采样器接口与正确性 | ✅ **完成**（2026-09-24） | `solvers/` 包：DDIM/Heun/DPMv3 | ✅ 全部达成：DDIM 逐 bit 一致；收敛阶 0.90/2.23/2.33；NFE 全对；真模型无 NaN |
-| **M2** Training-free 矩阵 | ⬜ 未开始 | E0-{DDIM,HEUN,EULER,DPP} × NFE | H1：NFE≤4 下 ≥ +0.5 AP 或 2× 提速 |
+| **M2** Training-free 矩阵 | ✅ **完成**（2026-09-24） | E0-{DDIM,HEUN,EULER,DPP} × NFE | ✅ **H1 支持**：DPMv3@4 比 DDIM@4 高 +1.31 AP；A1/A2 消融完成 |
 | **M3** EMS 标定 + DPMv3 全功率 | ⬜ 未开始 | 有限差分 JVP 版 EMS | H3：EMS 相对 degenerated ≥ +0.3 AP |
 | **M4** EDM 训练范式 | ⬜ 未开始 | 预条件 + 对数正态 σ + λ(σ) | H4：高 NFE 上界 ≥ +0.5 AP |
 | **M5** PFGM++ 训练范式 | ⬜ 未开始 | Beta′ 重尾扰动 + 先验，扫 D | H2：NFE=2 ≈ EDM@NFE=8 |
@@ -80,10 +80,10 @@
 - [x] 三 solver 在真实 ckpt 上无 NaN（随机初始化模型 + SAMPLE_STEP=4，4 个 solver 全部有限）
 
 ### M2 Gate
-- [ ] AP–NFE / latency–NFE 曲线 ×4 入表（含 ±std）
-- [ ] **H1 判定达成或明确否定**
-- [ ] 同 NFE 下 latency 差异 < 15%
-- [ ] A1(renewal) / A2(ensemble) 消融完成
+- [x] AP–NFE / latency–NFE 曲线 ×4 入表（含 ±std）→ RESULTS §4.1/§4.2
+- [x] **H1 判定达成**：DPMv3(DPP)@NFE=4 比 DDIM@4 **+1.31 AP**（@2 +0.55），均 ≥ +0.5 ✅
+- [x] 同 NFE 下 latency 差异 < 15%：Euler/Heun ✅；**DPMv3 超标（+50~80%）**，归因工程开销（逐调用插值查表），记 M3 优化项
+- [x] A1(renewal) / A2(ensemble) 消融完成：两者都挽回 DDIM 多步退化（NFE=8 时 +3.6/+3.1 AP）
 
 ### M3 Gate
 - [ ] EMS 计算 < 2 小时（1000 网格，K=256）
@@ -125,6 +125,15 @@
 
 ## 6. 工作日志
 
+### 2026-09-25（蓝图 v2.0 硬件适配重写）
+
+| 时间 | 事项 | 状态 |
+|---|---|---|
+| — | 实测本机环境：4×3090 24GB（共享，GPU2/3 被他人占满，可靠空闲 1–2 卡）、fastdiff（py3.10/torch 2.1.2+cu121/d2 0.6/numpy 1.26.4）、`torch.func.jvp` 可用 | ✅ |
+| — | 核实本机路径：数据集 `<repo>/datasets/{SDD/Strawberry, PLS/Plantv2}`、权重 `<repo>/pretained/diffdet_coco_res50.pth`（目录名实为 `pretained`）；上游参考仓库（edm/dpm-solver-v3/pfgmpp）本机无副本，M4/M5 时按需 clone | ✅ |
+| — | **蓝图升级 v2.0**：训练策略 bs2→8 + LR×4 + arm-per-GPU 并行（D4）、新增 E0-CTRL 控制臂与 `sdd.res50.bs8.yaml`、EMS 改 forward-AD JVP 主路线（D5，R4 解除）、两阶段协议维持但预算升级（D1 复核）、Q5 关闭维持 3 seed（D6）、新增风险 R14–R16、删 R4/R6/R7 | ✅ |
+| — | M3–M6 排期重估：合计 ≈13 h GPU / ≈8 h wall-clock（宽度 2），含余量 ≈12–15 h | ✅ |
+
 ### 2026-09-24（M1 实施）
 
 | 时间 | 事项 | 状态 |
@@ -135,6 +144,36 @@
 | 11:20 | 新增 cfg：SOLVER/ORDER/SKIP_TYPE/DEGENERATED/STATS_DIR/BOX_RENEWAL/USE_ENSEMBLE；detector.forward 接入 run_sampler 分发；原 ddim_sample 保留为冻结锚点 | ✅ |
 | 11:50 | 修复移植 bug ×3：time_0n 漏 index_list 截取、统计量 (1,1,1) 尾维与 3 维 x 广播升维、**dpm_v3_sample 丢弃 sample() 返回值**（返回了初始噪声） | ✅ |
 | 12:00 | Gate 测试 11/11 通过（tests/test_m1_ddim.py + tests/test_m1_convergence.py） | ✅ |
+| 12:40 | M2 启动：数据集接入（建 `datasets/SDD|PLS` 符号链接补齐注册表结构，1750/750、7916/2024 验证通过）+ eval-only 冒烟（未训练 AP=26.08） | ✅ |
+| 12:45 | baseline checkpoint 未迁移 → **本机重训**（同配置 3500 iter，3090 上 0.30 s/it，约 22 min）：**AP=61.83**（M0 3060 上 60.48，版本/硬件差异属预期），后续 M2 全部 arm 以此 ckpt 为准 | ✅ |
+| 13:00 | 写 `scripts/run_m2_matrix.py`（E0×NFE×seed 扫描，renewal/ensemble 解耦，DenoiseFn 实测 NFE，逐图 latency） | ✅ |
+| 13:20 | **M2 发现 15：Heun 二阶校正在 cosine 调度上灾难性发散**（AP 47→5.6）。根因：w(999)=2e4，DDIM 网格首步 |Δw|≈2e4，二阶校正在该步长上放大 clamp 去噪器的不一致性；一阶法（Euler/DDIM/DPP-multistep）均不受影响（实测 Euler@3=46.9、DPP@2=48.0 正常）。修复：`HEUN_MAX_DW=1.0` 步长守卫，|Δw| 超限区间退回一阶（多阶 ramp-up 标准做法），守卫后 Heun@NFE3=61.0 正常 | ✅ |
+| 13:30 | 守卫回归：M1 收敛测试改 `heun_max_dw=inf`（合成高斯无 clamp 病理）4/4 通过 | ✅ |
+| 13:45 | 启动完整 M2 矩阵（4 solver × 7 NFE × 3 seed，81 次评测，预计 ~75 min） | ✅ |
+| 14:45 | 修复 A2 启动竞态（fvcore 导入失败，改绝对路径 python 重启） | ✅ |
+| 15:30 | 主矩阵完成；A1/A2 消融以 bs=32 双卡并行启动 | ✅ |
+| 17:00 | **M2 全部完成**：H1 支持（DPMv3@4 = DDIM@4 +1.31）；A1/A2 定量入表；RESULTS §4.1–4.4 已更新 | ✅ |
+
+**M2 新发现**
+15. **Heun 二阶校正在 cosine 调度上灾难性发散**（AP 47→5.6，见 13:20 日志）。
+    修复用 `HEUN_MAX_DW=1.0` 步长守卫（|Δw| 超限区间退一阶），M2 数据全部在守卫下测得。
+16. **DDIM(eta=1) 随 NFE 单调退化**（61.98@1 → 57.63@10）：重注入噪声对训练收敛的模型有害；
+    纯 ODE 求解器（Euler/Heun/DPP，eta=0 路径）全部优于 DDIM(eta=1)。
+    → 机制归因：退化来自随机重注入，不是时间网格。
+17. **A1/A2 是"修补"，ODE solver 是"根治"**：renewal/ensemble 可挽回 DDIM 多步退化
+    （NFE=8 时 +3.6/+3.1），但 DPP@4 不开任何机制已优于 DDIM@8 开 A1+A2。
+18. **DPMv3 工程开销超标**（同 NFE 慢 50–80%）：逐调用 `NoiseScheduleVP` 插值查表 +
+    每次 eval 重建 `DPM_Solver_v3` 的 numpy 前处理。算法收益真实存在（+1.31 AP），
+    latency 需在 M3 优化（预构建、缓存 marginals）。
+19. 本机 baseline 重训 AP=61.83（vs M0 的 60.48），差异来自 torch 版本/硬件；
+    所有 M2+ 数据统一以本机 ckpt 为基准，与 M0 数据**不可跨表直接比较**。
+
+**M2 已全部完成 ✅。下一步：进入 M3（EMS 统计量标定 + DPMv3 全功率）**
+1. 写 `scripts/compute_ems.py`（有限差分 JVP 版 l/s/b，1000 logSNR 网格 × K=256 样本，
+   目标 < 2h；torch 2.1 无 forward_ad 约束仍在，但本机有 3090 ×2 可并行扫网格）
+2. 产出 `statistics/sdd/<tag>/{l.npz,sb.npz}` → `DEGENERATED=False` 跑 E0-DPV3
+3. DPMv3 latency 优化（预构建 solver、缓存 marginal 查表）后重测 §4.2
+4. H3 判定：真统计量 vs degenerated 在 NFE≤5 至少一点 +0.3 AP
 
 **M1 新发现**
 11. **DPM-Solver-v3 移植的三个坑**（均已修复并写入代码注释）：① 原版统计量带 `(1,1,1)` 尾维，

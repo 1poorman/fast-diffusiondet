@@ -197,6 +197,55 @@ eval batch=8、latency 为逐图 forward 计时中位数（warmup 后的 eval �
 
 ---
 
+## 5. M3 数据（EMS 真统计量，2026-09-25）
+
+**标定协议**：K=64（32 batches × bs2 × 300 box），1000 logSNR 网格，x0 = GT 框池抽样
+（每样本 300 个跨图有放回），λ(σ) 方向 JVP 用中心差分（head 自定义 Function 不支持 fwAD，
+自动降级，见 compute_ems.py）。产出 `statistics/sdd/ems_percoord`（(1001,300,4)）与
+`ems_scalar`（(1001,)）。Gate：4 项统计量 0 NaN；l 光滑性 max/median|Δ|=276 < 1000。
+
+**⚠ 统计量噪声警告**：K=64 低于蓝图 Gate 的 K=256。噪端（λ<−6）b 量级 ~2e4，
+f_d 的 MC 标准误 ~ b/√K ≈ 2.5e3，多步 g 系数会把该噪声放大。
+
+### 5.1 E0-DPV3：真统计量 vs degenerated（ckpt = M2 baseline 61.83，3 seed）
+
+| NFE | DPP(deg) | DPMv3-scalar | DPMv3-per_coord | Δscalar | Δper_coord |
+|---|---|---|---|---|---|
+| 1 | 61.98±0.22 | 61.98±0.25 | 61.98±0.25 | +0.00 | +0.00 |
+| 2 | 61.39±0.52 | **62.14±0.21** | **62.04±0.16** | **+0.76** | **+0.66** |
+| 3 | 60.81±0.35 | 48.64±0.27 | 59.20±0.11 | −12.18 | −1.62 |
+| 4 | 60.59±0.65 | 54.59±0.45 | 48.27±1.04 | −6.00 | −12.33 |
+| 6 | 60.06±0.81 | 48.82±0.74 | 37.64±1.17 | −11.23 | −22.42 |
+| 8 | 59.49±0.89 | 51.47±0.74 | 33.39±0.62 | −8.02 | −26.10 |
+| 10 | 58.99±1.32 | 55.18±0.77 | 37.40±0.27 | −3.82 | −21.59 |
+
+数据：`results/raw/m3_dpv3_scalar.csv`、`m3_dpv3_percoord.csv`。
+
+### 5.2 H3 判定
+
+**部分支持（仅 NFE=2）**：
+- NFE=2 处 +0.76/+0.66 ≥ +0.3 阈值且跨 seed 一致（std 0.16–0.21）✅
+- NFE≥3 处真统计量灾难退化 ❌ —— 与"一致的改进"要求矛盾
+
+**归因**：NFE=2 时 corrector 只用 1 组 g 系数，MC 噪声尚可；NFE≥3 后 g 的
+Vandermonde 组合逐级放大噪端统计量误差（b~2e4 × 噪声 ~2.5e3），per_coord
+（自由度更高、有效样本更少）比 scalar 退化更快，符合噪声放大假设。
+
+**行动项**：终版数字必须 K=256 重标定（compute_ems.py 支持 `--num-batches 128`，
+~4.5h 单卡）；若 K=256 后 NFE≥3 仍退化，则结论改为"EMS 真统计量在 box 域
+仅对极低 NFE 有效"，degenerated（DPM-Solver++）为主推。
+
+### 5.3 latency 优化（searchsorted 快速插值）
+
+marginal_* 系列插值从 sort-based 换成 searchsorted 分段线性（数学等价，
+max|Δ|=3e-7 vs 原实现）。优化后 latency 重测 `m3_latency_opt.csv`
+（bs=8 口径与 §4.2 相同）显示 DPMv3 同 NFE 开销从 +50~80% 降到 +38~62%
+（剩余开销为 DPM_Solver_v3 逐 eval 重建的 numpy 前处理，每 eval 一次性）。
+
+**M3 结论：H3 部分支持（NFE=2）；主推仍是 degenerated@NFE≤2；K=256 重标定为终版前置。**
+
+---
+
 ## 4. 假设判定看板（随数据更新）
 
 | 假设 | 内容 | 当前判定 | 依据 |
