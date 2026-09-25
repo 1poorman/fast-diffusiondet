@@ -430,6 +430,22 @@ class DiffusionDet(nn.Module):
                 # t = c_noise = lnσ/4（每图独立 σ）-> σ = exp(4·c_noise)
                 edm_sigmas = (t.float() * 4.0).exp()  # (B,)
 
+            if self.formulation == "edm":
+                # head 输入必须与推理路径 model_predictions_edm 完全一致：
+                # x_in = clamp(c_in(σ)·x_t)（norm 域），再转 abs xyxy。
+                # 首版 E1 直接喂原始 x_t（c_in 在 σ∈[0.01,4] 上变化 0.25~5.2 倍），
+                # 训练/推理输入分布错位 -> 模型几乎学不到东西（AP~5）
+                _cxcywh = box_xyxy_to_cxcywh(x_boxes / images_whwh[:, None, :])
+                # 推理侧 c_skip 乘的是 clamp 后的 x_in（model_predictions_edm），对齐
+                x_t_norm = torch.clamp((_cxcywh * 2. - 1.) * self.scale,
+                                       min=-1 * self.scale, max=self.scale)
+                ci = self.edm_c_in(edm_sigmas)  # (B,)
+                x_in_norm = torch.clamp(ci[:, None, None] * x_t_norm,
+                                        min=-1 * self.scale, max=self.scale)
+                _c = ((x_in_norm / self.scale) + 1) / 2.
+                _c = torch.cat([_c[..., :2], _c[..., 2:].clamp(min=1e-4)], dim=-1)
+                x_boxes = box_cxcywh_to_xyxy(_c) * images_whwh[:, None, :]
+
             outputs_class, outputs_coord = self.head(features, x_boxes, t, None)
 
             if self.formulation == "edm":
@@ -447,16 +463,15 @@ class DiffusionDet(nn.Module):
                                         cxcywh[..., 2:].clamp(min=1e-4)], dim=-1)
                     return box_cxcywh_to_xyxy(cxcywh) * images_whwh[:, None, :]
 
-                x_t_norm = to_norm(x_boxes)  # (B,P,4)
+                # x_t_norm 在上面 head 输入改造前已算好（原始 x_t，非 c_in·x_t）
                 cs = self.edm_c_skip(edm_sigmas)  # (B,)
                 co = self.edm_c_out(edm_sigmas)
 
                 def precondition(abs_f):
                     f_norm = torch.nan_to_num(to_norm(abs_f))
-                    # D 是 x0 预测，合法域 [-scale,scale]；clamp 防止 σ 大时
-                    # c_skip·x_t 项把 D 拉出域产生无序 xyxy（matcher GIoU 断言）。
-                    # nan_to_num：偶发 NaN 激活会穿透过 clamp（NaN>NaN=False），
-                    # 必须先消毒（其梯度为 0，安全跳过该条目）
+                    # D = c_skip·x_t + c_out·F：c_skip 乘原始 x_t（非 c_in·x_t）
+                    # D 合法域 [-scale,scale]；clamp 防 σ 大时拉出域产生无序 xyxy。
+                    # nan_to_num：NaN 穿透过 clamp（NaN>NaN=False），先消毒（梯度为 0）
                     x_t_clean = torch.nan_to_num(x_t_norm)
                     d_norm = torch.clamp(
                         cs[:, None, None] * x_t_clean + co[:, None, None] * f_norm,

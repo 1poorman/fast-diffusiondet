@@ -2,4 +2,9 @@ _BASE_: "sdd.res50.bs8.yaml"
 MODEL:
   DiffusionDet:
     FORMULATION: "edm"
+    EDM_LAMBDA_MAX: 20.0
+    SIGMA_DATA: 0.9082   # GT-only std（matched targets 都是 GT；混合版 0.19 使 c_in 饱和）
+SOLVER:
+  AMP:
+    ENABLED: False
 OUTPUT_DIR: "output/lab/sdd.res50.bs8.edm"

@@ -52,9 +52,11 @@ def steps_for_budget(solver, budget):
     """NFE 预算 -> (sampling_timesteps, 实际 NFE)。"""
     if solver in ("ddim", "euler", "dpm_v3"):
         return budget, budget
-    if solver == "heun":
+    if solver in ("heun", "edm_heun"):
         k = (budget + 1) // 2  # NFE = 2k-1
         return k, 2 * k - 1
+    if solver == "edm_euler":
+        return budget, budget
     raise ValueError(solver)
 
 

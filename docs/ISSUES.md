@@ -320,7 +320,32 @@
 - **解决**：detectron2 用位置 opts 覆盖 `OUTPUT_DIR X`。后按"同范式同权重"裁定
   E1-DPV3 与 E1-HEUN 共用 EDM 训练，不再单独训。
 
-### 5.9 E1 推理冒烟的数值健康信号（正面记录）
+### 5.9 E1"卡死"的真相：loss_ce NaN 崩溃 + 非守护线程空转假象
+- **现象**：E1-HEUN 训练 3 次"卡死"（进程 ALIVE、CPU 100%、GPU 无进展、日志不动），
+  分别在 iter 219/239/459/398，无 traceback。
+- **排查**：SIGINT/SIGUSR1 均无效（主线程阻塞在 GIL 不释放的调用）；
+  带 `-u` unbuffered + 独立 stackdump 模块重启后，日志尾部终于露出
+  `FloatingPointError: Loss became infinite or NaN`。
+- **真因**：**全部 5 层 loss_ce = NaN，bbox/giou 有限**——λ 加权的大梯度经共享
+  trunk 打爆分类头权重。之前"卡死"是主线程异常退出后非守护线程空转的假象。
+- **解决**：① `EDM_LAMBDA_MAX` 50→20；② **EDM 训练禁用 AMP**（fp16 上限 6e4
+  对 λ 加权梯度太紧），写进 `sdd.res50.bs8.edm.yaml`。
+- **教训**：**"进程活着但什么都不干"≠ 挂死**，先看 unbuffered 日志尾部有没有
+  未 flush 的异常；训练脚本一律 `-u`。
+
+### 5.10 E1 模型 AP≈5 的根因：训练/推理 head 输入不一致
+- **现象**：AMP/λ 修复后 E1 完整训完，但 edm_heun/dpm_v3 评测 AP 只有 4~6
+  （E0-CTRL 同预算 67）。
+- **根因**：EDM 预条件要求 head 输入是 `c_in(σ)·x_t`，推理路径
+  `model_predictions_edm` 做了，但**训练前向直接喂原始 x_t**——
+  c_in(σ) 在 σ∈[0.01,4] 上变化 0.25~5.2 倍，两侧输入分布完全错位。
+- **修复**：训练前向在 head 调用前插入与推理完全相同的变换
+  `x_in = clamp(c_in·x_t)`；c_skip 项乘的是 clamp 后的 x_t（与推理对齐）。
+- **验证**：修复后同配置 loss 从 ~630 降到 ~320，训练正常推进。
+- **教训**：**改训练范式时，把 train 前向和 inference 的 model_predictions 当
+  一对契约逐行对齐**；差异一处就足以让模型学不到东西且无任何报错。
+
+### 5.11 推理冒烟的数值健康信号（正面记录）
 - 50-iter 半成品模型：edm_heun@NFE7 AP=0.095、dpm_v3(EDM)@NFE7 AP=0.14——
   量级合理（未训练模型），说明 **EDM 预条件推理链路数值健康**，可放心等训练收敛。
 
