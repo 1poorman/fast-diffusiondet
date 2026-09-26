@@ -27,6 +27,8 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DEFAULT_FILENAME = "diffdet_coco_res50.pth"
 
 _PATH_CANDIDATES = (
+    # pretained/（历史拼写）是仓库内真实目录；petrain/ 为 README 早期笔误路径，兼容保留
+    os.path.join(_REPO_ROOT, "pretained", _DEFAULT_FILENAME),
     os.path.join(_REPO_ROOT, "petrain", _DEFAULT_FILENAME),
     os.path.normpath(os.path.join(_REPO_ROOT, os.pardir, "DiffusionDet-main", "petrain", _DEFAULT_FILENAME)),
 )
