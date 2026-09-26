@@ -61,8 +61,12 @@ fig.savefig(f"{FIG}/fig1_ap_nfe_curves.png", bbox_inches="tight")
 print("fig1 saved")
 
 # ============ 图 3：训练 LOSS 曲线对比（D4 策略三个数据集 + bs2 对照） ============
-def load_metrics(path):
-    """metrics.json 每行一个 JSON 记录；time>0 过滤 eval 行。"""
+def load_metrics(output_dir):
+    """读 detectron2 的 metrics.json（每行一个 JSON 记录）。
+
+    注意：log.txt 是纯文本日志（无 JSON），fig3 首版误读导致空图。
+    """
+    path = os.path.join(output_dir, "metrics.json")
     its, losses, evals = [], [], []
     with open(path) as f:
         for line in f:
@@ -83,30 +87,31 @@ def smooth(v, k=20):
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 specs = [
-    ("SDD (7 cls, D4 bs8, 1750 it)", f"{ROOT}/output/lab/sdd.res50.bs8/log.txt"),
-    ("PLS (16 cls, D4 bs8, 3000 it)", f"{ROOT}/output/lab/pls.res50.bs8/log.txt"),
-    ("WHEAT (12 cls, D4 bs8, 1400 it)", f"{ROOT}/output/lab/wheat.res50.bs8/log.txt"),
+    ("SDD (7 cls, D4 bs8, 1750 it)", f"{ROOT}/output/lab/sdd.res50.bs8"),
+    ("PLS (16 cls, D4 bs8, 3000 it)", f"{ROOT}/output/lab/pls.res50.bs8"),
+    ("WHEAT (12 cls, D4 bs8, 1400 it)", f"{ROOT}/output/lab/wheat.res50.bs8"),
 ]
 for ax, (title, p) in zip(axes, specs):
-    if not os.path.exists(p):
+    if not os.path.exists(os.path.join(p, "metrics.json")):
         ax.set_title(title + "\n(missing)"); continue
     its, losses, evals = load_metrics(p)
     ax.plot(its, losses, alpha=0.25, lw=0.8, color="#1f77b4")
     ax.plot(its, smooth(losses), lw=1.8, color="#1f77b4", label="total_loss (smoothed)")
+    # eval AP 标注：AP 与 loss 量级不同，画在轴顶部（竖线 + 文本）
     for it, vap in evals:
-        ax.axvline(it, color="#d62728", ls=":", lw=0.8, alpha=0.6)
-        ax.annotate(f"AP {vap:.1f}", (it, ax.get_ylim()[1]), fontsize=7,
-                    rotation=90, va="top", color="#d62728")
-    ax.set_title(title); ax.set_xlabel("iteration"); ax.set_ylabel("total loss")
+        ax.axvline(it, color="#d62728", ls=":", lw=1.0, alpha=0.7)
+        ax.text(it, ax.get_ylim()[1] * 0.97, f"AP {vap:.1f}", fontsize=8,
+                color="#d62728", ha="center", va="top")
     ax.grid(alpha=0.3); ax.legend(fontsize=8)
 fig.tight_layout()
 fig.savefig(f"{FIG}/fig2_training_loss.png", bbox_inches="tight")
 print("fig2 saved")
 
 # ============ 图 4：bs2(v1.0) vs bs8(D4) 训练对照（SDD） ============
-p_old = f"{ROOT}/output/lab/sdd.res50/log.txt"
-p_new = f"{ROOT}/output/lab/sdd.res50.bs8/log.txt"
-if os.path.exists(p_old) and os.path.exists(p_new):
+p_old = f"{ROOT}/output/lab/sdd.res50"
+p_new = f"{ROOT}/output/lab/sdd.res50.bs8"
+if os.path.exists(os.path.join(p_old, "metrics.json")) and os.path.exists(
+        os.path.join(p_new, "metrics.json")):
     fig, ax = plt.subplots(figsize=(7, 4.2))
     i1, l1, e1 = load_metrics(p_old)
     i2, l2, e2 = load_metrics(p_new)
@@ -119,7 +124,7 @@ if os.path.exists(p_old) and os.path.exists(p_new):
     for it, vap in e2:
         ax.annotate(f"{vap:.1f}", (it, vap), fontsize=8, color="#d62728",
                     xytext=(4, 4), textcoords="offset points")
-    ax.set_xlabel("images seen (thousands) = iter x bs")
+    ax.set_xlabel("images seen = iter x batch size")
     ax.set_ylabel("total loss")
     ax.set_title("D4 training strategy: bs2 vs bs8 (SDD)")
     ax.grid(alpha=0.3); ax.legend(fontsize=9)
