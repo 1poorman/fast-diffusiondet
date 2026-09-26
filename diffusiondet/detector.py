@@ -109,6 +109,9 @@ class DiffusionDet(nn.Module):
         self.use_ensemble = cfg.MODEL.DiffusionDet.USE_ENSEMBLE
         # M4: EDM formulation (F1)
         self.formulation = cfg.MODEL.DiffusionDet.FORMULATION
+        # V2-H6: 训练-推理 t 分布对齐
+        self.train_t_dist = cfg.MODEL.DiffusionDet.TRAIN_T_DIST
+        self.train_t_high_prob = cfg.MODEL.DiffusionDet.TRAIN_T_HIGH_PROB
         if self.formulation == "edm":
             self.edm_p_mean = cfg.MODEL.DiffusionDet.P_MEAN
             self.edm_p_std = cfg.MODEL.DiffusionDet.P_STD
@@ -537,12 +540,24 @@ class DiffusionDet(nn.Module):
 
         return diff_boxes, noise, t
 
+    def sample_train_t(self):
+        """V2-H6：训练 t 采样分布。
+
+        uniform：原版 torch.randint（蓝图冻结行为）；
+        mix_tmax：以 TRAIN_T_HIGH_PROB 概率直接取 t=T-1（NFE=1 推理从纯噪声
+        直出时唯一访问的时间点），其余仍均匀——把损失预算对齐到推理网格，
+        同时保留全 t 覆盖以不伤 DPP@2 等多步路径。
+        """
+        if self.train_t_dist == "mix_tmax" and torch.rand(1).item() < self.train_t_high_prob:
+            return torch.full((1,), self.num_timesteps - 1, device=self.device, dtype=torch.long)
+        return torch.randint(0, self.num_timesteps, (1,), device=self.device).long()
+
     def prepare_diffusion_concat(self, gt_boxes):
         """
         :param gt_boxes: (cx, cy, w, h), normalized
         :param num_proposals:
         """
-        t = torch.randint(0, self.num_timesteps, (1,), device=self.device).long()
+        t = self.sample_train_t()
         noise = torch.randn(self.num_proposals, 4, device=self.device)
 
         num_gt = gt_boxes.shape[0]

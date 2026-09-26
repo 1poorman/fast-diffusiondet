@@ -1,0 +1,10 @@
+_BASE_: "../sdd.res50.bs8.long.yaml"
+# V2-H6 处理臂：训练 t 分布对齐 —— 50% 概率直接训 t=T-1（NFE=1 唯一访问点），
+# 其余均匀。控制臂 = 同配置 uniform（本会话重训，GPU1）。
+# 注：bs16 系配置已废弃——"bs16 不稳定"是迁移初始化缺失的假象（见 RESULTS §工程发现）。
+MODEL:
+  DiffusionDet:
+    TRAIN_T_DIST: "mix_tmax"
+    TRAIN_T_HIGH_PROB: 0.5
+OUTPUT_DIR: "output/lab/v2/sdd.bs8.long.tmix"
+VERSION: 2

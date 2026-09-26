@@ -77,6 +77,12 @@ def add_diffusiondet_config(cfg):
     # Karras ρ（E1-HEUN 采样网格）
     cfg.MODEL.DiffusionDet.KARRAS_RHO = 7.0
 
+    # ---------------- V2: training-inference t alignment (H6) ----------------
+    # 训练 t 分布：uniform（原版）| mix_tmax（以 TRAIN_T_HIGH_PROB 概率直接采
+    # t=T-1 —— NFE=1 推理唯一访问的时间点，其余均匀）
+    cfg.MODEL.DiffusionDet.TRAIN_T_DIST = "uniform"
+    cfg.MODEL.DiffusionDet.TRAIN_T_HIGH_PROB = 0.5
+
     # ---------------- M1: sampler abstraction (diffusiondet/solvers/) ----------------
     # 推理采样器：ddim | euler | heun | dpm_v3
     cfg.MODEL.DiffusionDet.SOLVER = "ddim"

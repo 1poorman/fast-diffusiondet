@@ -1,0 +1,21 @@
+_BASE_: "../sdd.res50.bs8.yaml"
+# V2-H6 控制臂：bs 8->16（LR x2 线性规则），2000 iter = 与 m8-long(bs8/4000it)
+# 完全相同的 img-passes（1750 x 18 epoch = 32000）。训练 t 分布保持 uniform。
+# 处理臂 sdd.res50.bs16.tmix.yaml 与本配置唯一差异是 TRAIN_T_DIST（单变量）。
+SOLVER:
+  IMS_PER_BATCH: 16
+  BASE_LR: 0.0001
+  MAX_ITER: 2000
+  STEPS: (1600,)
+  WARMUP_ITERS: 250
+  CHECKPOINT_PERIOD: 1000
+  AMP:
+    ENABLED: False         # fp16 在 bs16 下 head 输出 NaN/无序 xyxy（GIoU 断言崩溃，
+                           # iter 31~80 复现两次；fp32 冒烟 150 iter 通过）——bs8 时代
+                           # 从未触发，属 bs16+fp16 的可变形注意力数值问题
+TEST:
+  EVAL_PERIOD: 1000
+DATALOADER:
+  NUM_WORKERS: 8
+OUTPUT_DIR: "output/lab/v2/sdd.bs16.uniform"
+VERSION: 2
