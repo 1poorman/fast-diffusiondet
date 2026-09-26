@@ -1,0 +1,11 @@
+_BASE_: "wheat.res50.bs8.yaml"
+# WHEAT 欠训练延长实验：1400 -> 4000 iter（16 -> 46 epoch）。
+# 依据：末段 loss 斜率 -4.8/1000it 仍强劲下降；EVAL_PERIOD 1000 监控
+# val AP 拐点（695 图小数据集有过拟合风险，AP 掉头即停）。
+SOLVER:
+  MAX_ITER: 4000
+  STEPS: (3200,)
+  CHECKPOINT_PERIOD: 1000
+TEST:
+  EVAL_PERIOD: 1000
+OUTPUT_DIR: "output/lab/wheat.res50.bs8.long"

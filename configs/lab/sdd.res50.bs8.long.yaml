@@ -1,0 +1,10 @@
+_BASE_: "sdd.res50.bs8.yaml"
+# SDD 延长实验：1750 -> 4000 iter（8 -> 18 epoch），STEPS 3200（80%）。
+# 依据：与 WHEAT 相同的末段斜率检查法；EVAL_PERIOD 1000 监控 val AP 拐点。
+SOLVER:
+  MAX_ITER: 4000
+  STEPS: (3200,)
+  CHECKPOINT_PERIOD: 1000
+TEST:
+  EVAL_PERIOD: 1000
+OUTPUT_DIR: "output/lab/sdd.res50.bs8.long"
