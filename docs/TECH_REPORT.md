@@ -428,7 +428,63 @@ solver 选择是否无关。协议沿用 D1 两阶段：先跑 E0-DDIM@1 基线�
 
 ---
 
-## 9. 复现指南
+## 10. 图表与可视化
+
+产出目录：`results/figures/`（300 dpi PNG + JPG 网格图），生成脚本
+`scripts/make_figures.py`、`scripts/visualize_compare.py`。
+
+### 10.1 AP-NFE 与 latency 权衡（fig1_ap_nfe_curves.png）
+左图：四求解器的 AP-NFE 曲线（误差棒=3 seed std）。可读出三个现象：
+① DDIM（灰）斜率最陡——多步退化最严重；② DPP（红）在 NFE=2 有唯一的
+"甜点峰"（67.11），随后与 DDIM 同步下滑；③ Heun/Euler 退化最平缓
+（NFE=10 仍 65+），是"需要多步精修"场景的安全选择。
+右图：AP-latency 权衡（点标注 NFE）。DPP@2 位于帕累托前沿的"高 AP"端，
+DDIM@1 位于"低延迟"端；其余所有配置均被这两点构成的线支配
+（euler/heun 的中间点略低于连线，说明其精度-延迟互换率不如两点直接选择）。
+
+### 10.2 训练 LOSS 曲线（fig2_training_loss.png）
+三个数据集的 D4 训练曲线（浅色=原始、深色=窗口平滑，红色竖线=eval 点及 AP）。
+SDD 曲线在 STEPS(1400) 处有明显台阶（LR 衰减），末段趋平——训练充分收敛；
+PLS/WHEAT 同形态。Eval 点 AP 标注显示：收敛后的 eval AP 与曲线平台高度对应，
+无过拟合迹象（val AP 与 train loss 同步改善）。
+
+### 10.3 D4 策略对照（fig3_d4_strategy.png）
+bs2/v1.0 与 bs8/D4 的训练曲线叠加（x 轴统一为"看过图像数"）。D4 用一半的
+iter 数达到更低 loss，且最终 AP 高 5.2——大 batch + 大 LR 的优化效率优势
+直观可见。这解释了为何 D4 是全项目收益最大的单项改动。
+
+### 10.4 检测效果图对比（vis/grid_det.jpg）
+同一张图（同 seed=42）在 4 个配置下的检测结果横向拼接（ddim@1/ddim@2/
+dpm_v3@2/heun@3 各一行，3 张图）。观察：
+* 四配置的高置信度大目标框基本一致（模型收敛良好的表现）；
+* 差异集中在低置信度/小目标：ddim@2 开始丢检（与 AP 下降一致），
+  dpm_v3@2 的框位置与 ddim@1 几乎一致但多保留一个低分目标。
+
+### 10.5 Grad-CAM++ 热力图对比（vis/grid_cam.jpg）
+对每个配置的**最终去噪状态 x_start** 跑 head，以最后一层类别 logits 之和为
+目标反传到 backbone P5（stride 32），Grad-CAM++ 加权（脚本
+`visualize_compare.py`；技术要点：FPN 的 p5 是动态输出无同名子模块，且
+模块级 backward hook 对 dict 输出不触发——需在 forward hook 里对 p5 张量
+直接 register_hook，且仅带梯度前向时注册）。
+
+观察：
+* ddim@1 与 dpm_v3@2 的 CAM 均聚焦病斑/虫害区域（与 GT 框位置一致），
+  说明两种配置的"注意力"都正确；
+* ddim@2 的 CAM 出现**块状伪影**（横向条带）——重注入噪声使最终提议分布
+  扰动了 backbone 关注区域，与该配置 AP 下降 2.8 一致；
+* heun@3 的 CAM 最平滑（二阶路径的轨迹更稳定）。
+* 附带发现：dpm_v3@1 与 edm_heun@1 在修复后 CAM/检测完全一致
+  （§5.9 的单步等价性在视觉上复现）。
+
+### 10.6 局限
+* CAM 的目标函数是"全部 proposal logits 之和"，反映的是整体定位信号，
+  不区分类别；按类 CAM（每类单独 backward）可作为后续扩展。
+* 检测对比只展示 score>0.5 的框；更低阈值的召回差异（FP 增多模式）
+  未可视化。
+* 热力图上采样到原图用双线性，低分辨率层（stride 32）的边界必然模糊，
+  属方法固有限制。
+
+---
 
 ### 9.1 环境
 ```bash
