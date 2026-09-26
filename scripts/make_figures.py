@@ -16,7 +16,15 @@ plt.rcParams.update({"font.size": 11, "figure.dpi": 300})
 
 # ============ 图 1：AP-NFE 曲线（E0-CTRL bs8 终版矩阵） ============
 ap = defaultdict(list)
-for r in csv.DictReader(open(f"{ROOT}/results/raw/m4_e0ctrl_full.csv")):
+for f in ["m4_e0ctrl_full.csv", "final_sdd_long_ddim_euler.csv", "final_sdd_long_heun_dpp.csv"]:
+    try:
+        rows = list(csv.DictReader(open(f"{ROOT}/results/raw/{f}")))
+    except FileNotFoundError:
+        continue
+    # 只取列名含 tag 的行：优先用 final_sdd_long（最佳 epoch 模型）
+for r in sum([list(csv.DictReader(open(f"{ROOT}/results/raw/{f}")))
+              for f in ["final_sdd_long_ddim_euler.csv", "final_sdd_long_heun_dpp.csv"]
+              if os.path.exists(f"{ROOT}/results/raw/{f}")], []):
     ap[(r["solver"], int(r["actual_nfe"]))].append(float(r["AP"]))
 
 offsets = {"ddim": -0.12, "euler": 0.0, "heun": 0.12, "dpm_v3": 0.24}
@@ -34,13 +42,15 @@ for solver in ["ddim", "euler", "heun", "dpm_v3"]:
                 color=colors[solver], label=labels[solver])
 ax.set_xlabel("NFE (head forward count)")
 ax.set_ylabel("COCO AP")
-ax.set_title("AP vs NFE  (SDD, E0-CTRL D4-bs8 model)")
+ax.set_title("AP vs NFE  (SDD, D4-long 4000it model)")
 ax.grid(alpha=0.3); ax.legend(fontsize=9)
 ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
 # ============ 图 2：latency-AP 权衡 ============
 lat = defaultdict(list)
-for r in csv.DictReader(open(f"{ROOT}/results/raw/m4_e0ctrl_full.csv")):
+for r in sum([list(csv.DictReader(open(f"{ROOT}/results/raw/{f}")))
+              for f in ["final_sdd_long_ddim_euler.csv", "final_sdd_long_heun_dpp.csv"]
+              if os.path.exists(f"{ROOT}/results/raw/{f}")], []):
     lat[(r["solver"], int(r["actual_nfe"]))].append(
         (float(r["AP"]), float(r["latency_ms_median"])))
 ax = axes[1]
