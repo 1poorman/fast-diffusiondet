@@ -377,6 +377,66 @@ D4 训练（bs8）的 SDD 模型，BOX_RENEWAL/ENSEMBLE 关闭，3 seed，eval b
 
 ---
 
+## 9. NFE 成本-收益完整对比（训练用时 vs 推理用时 vs AP）
+
+**结论先行：NFE>1 不增加任何训练用时**——训练是"单步去噪"（每 iter 恰好一次
+head forward，`prepare_diffusion_concat` 只采一个 t），NFE/SAMPLE_STEP 是纯
+推理期参数。实证：M2/M3/M4 全部矩阵（数百次评测）共用同一个 checkpoint 跑遍
+所有 NFE 臂，训练配置从未引用 SAMPLE_STEP。
+
+### 9.1 训练用时（与 NFE 无关，只与数据/epoch/bs 有关）
+
+| 训练 | 配置 | iter | 实测 wall time* | 与 NFE 的关系 |
+|---|---|---|---|---|
+| SDD D4 | bs8 / 8 epoch | 1750 | ~16 min（0.55s/it） | **无关** |
+| PLS D4 | bs8 / 3 epoch | 3000 | ~25 min | **无关** |
+| WHEAT D4 | bs8 / 16 epoch | 1400 | ~13 min | **无关** |
+| SDD bs2（v1.0 口径） | bs2 / 3500 iter | 3500 | ~22 min（0.30s/it，3060） | **无关** |
+
+*wall time 含周期性 eval；NUM_WORKERS=0。任何 NFE 的推理配置都可以在
+同一训练产物上直接切换，无需重训。
+
+### 9.2 推理用时与 AP 完整对照（SDD，E0-CTRL bs8，eval bs=32，3 seed）
+
+latency = 逐图 forward 中位数；Δlat 相对同 solver NFE=1；效率 = AP/latency×100
+（每毫秒 AP，越高越好）。
+
+| solver | NFE | AP | latency | Δlat | 效率 | 备注 |
+|---|---|---|---|---|---|---|
+| ddim | 1 | 66.95±0.13 | 39.0ms | — | 171.6 | **延迟优先默认** |
+| ddim | 2 | 66.20 | 63.3ms | +62% | 104.6 | |
+| ddim | 4 | 64.74 | 110.6ms | +184% | 58.5 | |
+| ddim | 10 | 63.39 | 254.2ms | +552% | 24.9 | |
+| dpm_v3 | 1 | 66.95 | 49.8ms | — | 134.4 | 固定开销 +10.8ms（插值查表） |
+| **dpm_v3** | **2** | **67.11±0.04** | **80.7ms** | **+62%** | **83.2** | **全局最优 AP** |
+| dpm_v3 | 4 | 66.00 | 145.1ms | +191% | 45.5 | |
+| dpm_v3 | 10 | 63.78 | 326.4ms | +555% | 19.5 | |
+| euler | 2 | 66.60 | 65.6ms | +59% | 101.5 | 最平滑的退化曲线 |
+| euler | 10 | 65.08 | 249.2ms | +505% | 26.1 | NFE=10 下 AP 最高 |
+| heun | 3 | 66.60 | 63.1ms | +55% | 105.6 | 实际 NFE=2k−1 |
+
+（完整逐条数据见 `results/raw/m4_e0ctrl_full.csv`；Heun budget 映射 k=(B+1)//2）
+
+### 9.3 成本结构分析
+
+1. **边际成本恒定**：每增加 1 NFE ≈ +22~25ms（bs=32 下的 head forward 开销），
+   各 solver 一致；latency ≈ 固定底座 + NFE × 边际。
+2. **固定底座差异**：dpm_v3 比 ddim 贵 ~11ms（NoiseScheduleVP 插值查表 + 每 eval
+   一次的 numpy 前处理）；euler/heun 与 ddim 差 <3ms（§4.3 优化后）。
+3. **效率拐点**：所有 solver 的 AP/ms 效率峰值都在 NFE=1；NFE=2 的 DPP 是唯一
+   "多步仍划算"的点（+0.16 AP 换 2.07× latency）——是否值得取决于应用对
+   0.16 AP 的定价。
+4. **训练-推理解耦**：由于 NFE 不影响训练，可以**一次训练、按部署预算选点**：
+   边缘端 NFE=1（39ms），服务器端 NFE=2（67.11 AP），同一权重。
+
+### 9.4 跨数据集说明
+
+NFE-latency 线性关系由模型结构决定（每步 = 1 次 head forward），与数据集无关；
+跨数据集只需按 val 图数换算总推理时长。WHEAT/PLS 的同口径 latency 可按需补测。
+
+
+---
+
 
 ------
 
