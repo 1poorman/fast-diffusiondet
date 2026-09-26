@@ -37,6 +37,8 @@ PREDEFINED_SPLITS = {
     "pls_test": ("PLS/Plantv2/test2017", "PLS/Plantv2/annotations/instances_test2017.json", 16),
     "sdd_train": ("SDD/Strawberry/train2017", "SDD/Strawberry/annotations/instances_train2017.json", 7),
     "sdd_val": ("SDD/Strawberry/val2017", "SDD/Strawberry/annotations/instances_val2017.json", 7),
+    "wheat_train": ("WHEAT/strat_real/train2017", "WHEAT/wheat_seg_strat/annotations/instances_train2017.json", 12),
+    "wheat_val": ("WHEAT/strat_real/val2017", "WHEAT/wheat_seg_strat/annotations/instances_val2017.json", 12),
 }
 
 _BACKGROUND_IDS = (0,)

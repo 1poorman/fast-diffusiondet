@@ -1,0 +1,19 @@
+_BASE_: "pls.res50.bs8.yaml"
+# fast-diffusiondet v2.0 D4 训练策略 -- WHEAT/wheat_seg_strat（12 类，695 train/123 val）。
+# 标注稀疏（~2.6 anns/图）-> 加大 epoch：16 epoch = 695/8*16 ≈ 1390 → MAX_ITER 1400，
+# STEPS 80% = 1120。其余超参继承 pls.res50.bs8.yaml（bs8/LR 1e-4/无 AMP 变更）。
+MODEL:
+  DiffusionDet:
+    NUM_CLASSES: 12
+    NUM_PROPOSALS: 300
+DATASETS:
+  TRAIN: ("wheat_train",)
+  TEST: ("wheat_val",)
+SOLVER:
+  MAX_ITER: 1400
+  STEPS: (1120,)
+  CHECKPOINT_PERIOD: 700
+TEST:
+  EVAL_PERIOD: 0
+OUTPUT_DIR: "output/lab/wheat.res50.bs8"
+VERSION: 2
