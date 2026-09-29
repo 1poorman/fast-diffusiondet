@@ -49,3 +49,9 @@ Thumbs.db
 scratch/
 tmp/
 *.bak
+
+# ---------- 可视化输出（体积大，可由 scripts/ 重算，不入库）----------
+# 逐 NFE 步骤的全分辨率检测结果图（单图/矩阵两套），实测 180M+/1268 张
+results/figures/steps/
+# 拼图总览（接触表/轨迹图）：已跟踪的 grid_*.jpg 不受影响，仅忽略新生成的
+results/figures/vis/*.jpg

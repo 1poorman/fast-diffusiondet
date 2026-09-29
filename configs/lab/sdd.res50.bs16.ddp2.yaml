@@ -1,0 +1,25 @@
+_BASE_: "sdd.res50.bs8.yaml"
+
+# D5: 2 卡 DDP 提速（每卡 bs8 -> 全局 bs16）。
+# 依据（实测，RTX 3090 / AMP / SDD）：
+#   * 训练是「算力瓶颈」而非数据瓶颈：单卡 bs8 的 data_time 仅 0.014 s，
+#     而 iter time 0.638 s；改成 bs24 也只把每样本耗时从 79.8 压到 67.1 ms，
+#     说明加大 batch 不会摊薄 head（RoIAlign/DynamicConv 按 proposal 线性增长）。
+#   * 因此单卡加大 bs 无用，只能靠多卡并行把工作切到多张卡上。
+# 配方：每卡 bs8（不变），全局 bs = 2 x 8 = 16；
+#       LR 按 linear rule x2 = 2e-4；迭代数按「图像通过量不变」减半
+#       1750 -> 875（1750 x 8 = 875 x 16 = 14000 样本），STEPS 取 80% 预算点。
+# 预期：单 iter 时间与单卡 bs8 持平（分布式开销小），墙钟约减半（~20 min -> ~10 min）。
+# 注意：全局 batch 8 -> 16 是新配方，不是对 D4 的逐 bit 复现，
+#      精度必须与 D4 基线（AP 66.69 @ nfe1）对比确认后再采用。
+# 本机限制：GPU2/GPU3 被 vLLM 占满（各 24 GiB），只能用 GPU0+GPU1。
+SOLVER:
+  IMS_PER_BATCH: 16       # 2 GPU x 8
+  BASE_LR: 0.0002         # linear rule: 1e-4 x 16/8
+  MAX_ITER: 875           # 与 D4 相同的 14000 样本通过量
+  STEPS: (700,)           # 80% 预算点
+  WARMUP_ITERS: 50
+  CHECKPOINT_PERIOD: 437
+TEST:
+  EVAL_PERIOD: 437
+OUTPUT_DIR: "output/lab/sdd.res50.bs16.ddp2"
