@@ -9,7 +9,7 @@ dist/
 .eggs/
 
 # ---------- 训练产物 / 权重 ----------
-output/
+output
 petrain/
 models/
 *.pth
