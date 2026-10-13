@@ -88,6 +88,9 @@ class DynamicHead(nn.Module):
         rcnn_head = RCNNHead(cfg, d_model, num_classes, dim_feedforward, nhead, dropout, activation)
         self.head_series = _get_clones(rcnn_head, num_heads)
         self.num_heads = num_heads
+        self.eval_num_heads = cfg.MODEL.DiffusionDet.EVAL_NUM_HEADS
+        if not 0 <= self.eval_num_heads <= num_heads:
+            raise ValueError("EVAL_NUM_HEADS must be between 0 and NUM_HEADS")
         self.return_intermediate = cfg.MODEL.DiffusionDet.DEEP_SUPERVISION
 
         # Gaussian random feature embedding layer for time
@@ -160,7 +163,10 @@ class DynamicHead(nn.Module):
         else:
             proposal_features = None
         
+        depth = self.num_heads if self.training else (self.eval_num_heads or self.num_heads)
         for head_idx, rcnn_head in enumerate(self.head_series):
+            if head_idx >= depth:
+                break
             class_logits, pred_bboxes, proposal_features = rcnn_head(features, bboxes, proposal_features, self.box_pooler, time)
             if self.return_intermediate:
                 inter_class_logits.append(class_logits)
@@ -183,6 +189,7 @@ class RCNNHead(nn.Module):
 
         # dynamic.
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.attention_need_weights = cfg.MODEL.DiffusionDet.ATTENTION_NEED_WEIGHTS
         self.inst_interact = DynamicConv(cfg)
 
         self.linear1 = nn.Linear(d_model, dim_feedforward)
@@ -251,7 +258,10 @@ class RCNNHead(nn.Module):
 
         # self_att.
         pro_features = pro_features.view(N, nr_boxes, self.d_model).permute(1, 0, 2)
-        pro_features2 = self.self_attn(pro_features, pro_features, value=pro_features)[0]
+        pro_features2 = self.self_attn(
+            pro_features, pro_features, value=pro_features,
+            need_weights=self.attention_need_weights,
+        )[0]
         pro_features = pro_features + self.dropout1(pro_features2)
         pro_features = self.norm1(pro_features)
 

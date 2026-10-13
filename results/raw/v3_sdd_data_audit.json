@@ -1,0 +1,40 @@
+{
+  "train": {
+    "path": "datasets/Strawberry/annotations/instances_train2017.json",
+    "sha256": "2984984785abc9a927172fe52c00c159fe24252008fb39da03acba409b4f9053",
+    "images": 1750,
+    "objects": 3932,
+    "max_objects_per_image": 17,
+    "small": 27,
+    "medium": 1355,
+    "large": 2550,
+    "classes": {
+      "Angular Leafspot": 395,
+      "Anthracnose Fruit Rot": 117,
+      "Blossom Blight": 221,
+      "Gray Mold": 420,
+      "Leaf Spot": 1453,
+      "Powdery Mildew Fruit": 202,
+      "Powdery Mildew Leaf": 1124
+    }
+  },
+  "val": {
+    "path": "datasets/Strawberry/annotations/instances_val2017.json",
+    "sha256": "c8fb0b104879b25c8841532d0905b0ab4b84ac22448efbfb93b5fe70c44f8700",
+    "images": 750,
+    "objects": 1775,
+    "max_objects_per_image": 15,
+    "small": 12,
+    "medium": 612,
+    "large": 1151,
+    "classes": {
+      "Angular Leafspot": 144,
+      "Anthracnose Fruit Rot": 47,
+      "Blossom Blight": 79,
+      "Gray Mold": 178,
+      "Leaf Spot": 647,
+      "Powdery Mildew Fruit": 96,
+      "Powdery Mildew Leaf": 584
+    }
+  }
+}

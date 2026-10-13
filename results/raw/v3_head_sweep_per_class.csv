@@ -1,0 +1,36 @@
+depth,attention,category,AP
+6,legacy,Angular Leafspot,71.10702583056218
+6,legacy,Anthracnose Fruit Rot,47.89411281402072
+6,legacy,Blossom Blight,80.6637588893145
+6,legacy,Gray Mold,57.03318759571737
+6,legacy,Leaf Spot,84.86257095382233
+6,legacy,Powdery Mildew Fruit,55.656389176129125
+6,legacy,Powdery Mildew Leaf,68.5658316913653
+6,no_weights,Angular Leafspot,71.1070260959663
+6,no_weights,Anthracnose Fruit Rot,47.89411281402072
+6,no_weights,Blossom Blight,80.6637588893145
+6,no_weights,Gray Mold,57.03318746517823
+6,no_weights,Leaf Spot,84.86257531729821
+6,no_weights,Powdery Mildew Fruit,55.65640703503102
+6,no_weights,Powdery Mildew Leaf,68.56583217510351
+5,no_weights,Angular Leafspot,71.1277626047435
+5,no_weights,Anthracnose Fruit Rot,48.43501866897117
+5,no_weights,Blossom Blight,79.64258730554535
+5,no_weights,Gray Mold,57.58434377356296
+5,no_weights,Leaf Spot,84.74232742192338
+5,no_weights,Powdery Mildew Fruit,53.572586109627785
+5,no_weights,Powdery Mildew Leaf,68.29657740590446
+4,no_weights,Angular Leafspot,70.84467585194223
+4,no_weights,Anthracnose Fruit Rot,47.22100868602686
+4,no_weights,Blossom Blight,79.53255325089103
+4,no_weights,Gray Mold,58.263390675191765
+4,no_weights,Leaf Spot,84.10153853528737
+4,no_weights,Powdery Mildew Fruit,52.53682883645193
+4,no_weights,Powdery Mildew Leaf,68.47347896023817
+3,no_weights,Angular Leafspot,69.3074009754705
+3,no_weights,Anthracnose Fruit Rot,44.426426435219334
+3,no_weights,Blossom Blight,79.44677846776395
+3,no_weights,Gray Mold,56.75866007680921
+3,no_weights,Leaf Spot,82.83823680280501
+3,no_weights,Powdery Mildew Fruit,52.147148835501454
+3,no_weights,Powdery Mildew Leaf,67.43105141367093

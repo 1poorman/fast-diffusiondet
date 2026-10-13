@@ -1,0 +1,10 @@
+_BASE_: "../sdd.res50.bs8.yaml"
+# Same six trained stages; skip unused attention probability output.
+MODEL:
+  DiffusionDet:
+    SAMPLE_STEP: 1
+    BOX_RENEWAL: False
+    USE_ENSEMBLE: False
+    EVAL_NUM_HEADS: 0
+    ATTENTION_NEED_WEIGHTS: False
+OUTPUT_DIR: "runs/v3/sdd.res50.attention"

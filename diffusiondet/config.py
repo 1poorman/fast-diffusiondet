@@ -27,6 +27,12 @@ def add_diffusiondet_config(cfg):
     cfg.MODEL.DiffusionDet.NUM_CLS = 1
     cfg.MODEL.DiffusionDet.NUM_REG = 3
     cfg.MODEL.DiffusionDet.NUM_HEADS = 6
+    # V3: checkpoint-compatible inference depth; 0 executes all trained heads.
+    # Training always keeps every stage and its existing auxiliary supervision.
+    cfg.MODEL.DiffusionDet.EVAL_NUM_HEADS = 0
+    # False avoids materializing unused attention maps (SDPA eligible on torch 2).
+    # Keep the original arithmetic by default for historical solver regressions.
+    cfg.MODEL.DiffusionDet.ATTENTION_NEED_WEIGHTS = True
 
     # Dynamic Conv.
     cfg.MODEL.DiffusionDet.NUM_DYNAMIC = 2
