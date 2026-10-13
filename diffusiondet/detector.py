@@ -112,6 +112,10 @@ class DiffusionDet(nn.Module):
         # V2-H6: 训练-推理 t 分布对齐
         self.train_t_dist = cfg.MODEL.DiffusionDet.TRAIN_T_DIST
         self.train_t_high_prob = cfg.MODEL.DiffusionDet.TRAIN_T_HIGH_PROB
+        # Optional experiment hooks; None preserves the historical RNG path.
+        # They contain no model parameters and are never serialized in state_dict.
+        self.train_time_sampler = None
+        self.train_diffusion_observer = None
         if self.formulation == "edm":
             self.edm_p_mean = cfg.MODEL.DiffusionDet.P_MEAN
             self.edm_p_std = cfg.MODEL.DiffusionDet.P_STD
@@ -577,6 +581,9 @@ class DiffusionDet(nn.Module):
         直出时唯一访问的时间点），其余仍均匀——把损失预算对齐到推理网格，
         同时保留全 t 覆盖以不伤 DPP@2 等多步路径。
         """
+        if self.train_time_sampler is not None:
+            return self.train_time_sampler(self.num_timesteps, self.device,
+                                           self.train_t_dist, self.train_t_high_prob)
         if self.train_t_dist == "mix_tmax" and torch.rand(1).item() < self.train_t_high_prob:
             return torch.full((1,), self.num_timesteps - 1, device=self.device, dtype=torch.long)
         return torch.randint(0, self.num_timesteps, (1,), device=self.device).long()
@@ -607,6 +614,9 @@ class DiffusionDet(nn.Module):
             x_start = gt_boxes
 
         x_start = (x_start * 2. - 1.) * self.scale
+
+        if self.train_diffusion_observer is not None:
+            self.train_diffusion_observer(x_start, noise, t)
 
         if self.formulation == "edm":
             # F1: sigma ~ LogNormal(P_mean, P_std) 截断；x_t = x0 + sigma*eps（VE）

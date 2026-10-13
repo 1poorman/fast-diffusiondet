@@ -1,0 +1,18 @@
+{
+  "paired_mean_delta_AP": 0.4654859581685192,
+  "paired_mean_delta_AP75": -0.16044417729082738,
+  "positive_pairs": 2,
+  "training_pairs": 3,
+  "paired_delta_sample_sd": 0.430750086624499,
+  "p50_change_percent": 0.11097540678519646,
+  "checks": {
+    "minimum_training_pairs": true,
+    "mean_AP": true,
+    "positive_pairs": true,
+    "AP75": false,
+    "latency": true
+  },
+  "passed_development_screen": false,
+  "report_script_sha256": "11e6bc3f9c828c8d564517c23727cb2957a43fd1e9af6e86e31df305c9730430",
+  "scope": "SDD development screen; requires independent data and matched H6 training for architecture claims"
+}
