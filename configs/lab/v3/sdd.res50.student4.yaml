@@ -1,0 +1,21 @@
+_BASE_: "../sdd.res50.bs8.yaml"
+# Structurally four-stage student, fine-tuned from the six-stage SDD checkpoint.
+# Used by scripts/v3_distill.py; teacher is explicit and never saved with student.
+MODEL:
+  DiffusionDet:
+    NUM_HEADS: 4
+    EVAL_NUM_HEADS: 0
+    ATTENTION_NEED_WEIGHTS: False
+    SAMPLE_STEP: 1
+    BOX_RENEWAL: False
+    USE_ENSEMBLE: False
+SOLVER:
+  BASE_LR: 0.000025
+  MAX_ITER: 300
+  STEPS: (240,)
+  WARMUP_ITERS: 20
+  AMP:
+    ENABLED: False
+DATALOADER:
+  NUM_WORKERS: 0
+OUTPUT_DIR: "runs/v3/student4"

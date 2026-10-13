@@ -1,0 +1,8 @@
+{
+  "teacher_parameters": 110560770,
+  "student_parameters": 83077868,
+  "max_box_difference": 0,
+  "max_score_difference": 0,
+  "strict_truncated_initialization": true,
+  "fixture": "CPU 128x160 deterministic synthetic image, real SDD checkpoint, seed123"
+}

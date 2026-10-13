@@ -33,6 +33,11 @@ def add_diffusiondet_config(cfg):
     # False avoids materializing unused attention maps (SDPA eligible on torch 2).
     # Keep the original arithmetic by default for historical solver regressions.
     cfg.MODEL.DiffusionDet.ATTENTION_NEED_WEIGHTS = True
+    # V3: used only when an explicit frozen teacher is passed during training.
+    cfg.MODEL.DiffusionDet.KD_TEMPERATURE = 2.0
+    cfg.MODEL.DiffusionDet.KD_MIN_IOU = 0.5
+    cfg.MODEL.DiffusionDet.KD_CLASS_WEIGHT = 0.5
+    cfg.MODEL.DiffusionDet.KD_BOX_WEIGHT = 1.0
 
     # Dynamic Conv.
     cfg.MODEL.DiffusionDet.NUM_DYNAMIC = 2

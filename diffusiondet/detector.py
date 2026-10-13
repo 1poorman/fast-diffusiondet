@@ -156,6 +156,11 @@ class DiffusionDet(nn.Module):
 
         # Build Dynamic Head.
         self.head = DynamicHead(cfg=cfg, roi_input_shape=self.backbone.output_shape())
+        self.kd_temperature = cfg.MODEL.DiffusionDet.KD_TEMPERATURE
+        self.kd_min_iou = cfg.MODEL.DiffusionDet.KD_MIN_IOU
+        self.kd_class_weight = cfg.MODEL.DiffusionDet.KD_CLASS_WEIGHT
+        self.kd_box_weight = cfg.MODEL.DiffusionDet.KD_BOX_WEIGHT
+        self.last_distillation_stats = {}
         # Loss parameters:
         class_weight = cfg.MODEL.DiffusionDet.CLASS_WEIGHT
         giou_weight = cfg.MODEL.DiffusionDet.GIOU_WEIGHT
@@ -390,7 +395,7 @@ class DiffusionDet(nn.Module):
 
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
-    def forward(self, batched_inputs, do_postprocess=True):
+    def forward(self, batched_inputs, do_postprocess=True, *, teacher=None):
         """
         Args:
             batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
@@ -405,6 +410,12 @@ class DiffusionDet(nn.Module):
                 * "height", "width" (int): the output resolution of the model, used in inference.
                   See :meth:`postprocess` for details.
         """
+        if teacher is not None:
+            if not self.training or teacher.training or teacher is self:
+                raise ValueError("Distillation requires a training student and a separate eval teacher")
+            if self.formulation != "vp" or teacher.formulation != "vp":
+                raise ValueError("V3 distillation currently supports VP only")
+        self.last_distillation_stats = {}
         images, images_whwh = self.preprocess_image(batched_inputs)
         if isinstance(images, (list, torch.Tensor)):
             images = nested_tensor_from_tensor_list(images)
@@ -505,6 +516,24 @@ class DiffusionDet(nn.Module):
             for k in loss_dict.keys():
                 if k in weight_dict:
                     loss_dict[k] *= weight_dict[k]
+            if teacher is not None:
+                from .distillation import quality_distillation_loss
+                with torch.no_grad():
+                    # Same augmented images and EXACT same noisy boxes/timestep.
+                    # The teacher has its own frozen backbone; student features
+                    # must not change the teacher's targets as training proceeds.
+                    teacher_images, _ = teacher.preprocess_image(batched_inputs)
+                    teacher_src = teacher.backbone(teacher_images.tensor)
+                    teacher_features = [teacher_src[f] for f in teacher.in_features]
+                    teacher_cls, teacher_boxes = teacher.head(teacher_features, x_boxes, t, None)
+                    teacher_output = {"pred_logits": teacher_cls[-1], "pred_boxes": teacher_boxes[-1]}
+                    student_indices, _ = self.criterion.matcher(output, targets)
+                    teacher_indices, _ = teacher.criterion.matcher(teacher_output, targets)
+                kd_losses, self.last_distillation_stats = quality_distillation_loss(
+                    output, teacher_output, targets, student_indices, teacher_indices,
+                    temperature=self.kd_temperature, min_iou=self.kd_min_iou)
+                loss_dict["loss_kd_cls"] = kd_losses["loss_kd_cls"] * self.kd_class_weight
+                loss_dict["loss_kd_box"] = kd_losses["loss_kd_box"] * self.kd_box_weight
             return loss_dict
 
     def prepare_diffusion_repeat(self, gt_boxes):
