@@ -1,0 +1,64 @@
+{
+  "audit": {
+    "evaluations": 36,
+    "coverage_rows": 1296,
+    "gt_counts": {
+      "all": 1775,
+      "category_0": 144,
+      "category_1": 47,
+      "category_2": 79,
+      "category_3": 178,
+      "category_4": 647,
+      "category_5": 96,
+      "category_6": 584,
+      "crowded_ge5": 592
+    },
+    "baseline_max_abs_AP_difference": 0.0
+  },
+  "candidates": [
+    {
+      "proposals": 200,
+      "checks": {
+        "AP": false,
+        "AP75": false,
+        "p50": false,
+        "worst_category": true,
+        "crowded_coverage50": true
+      },
+      "passed_development_screen": false
+    },
+    {
+      "proposals": 150,
+      "checks": {
+        "AP": false,
+        "AP75": false,
+        "p50": false,
+        "worst_category": true,
+        "crowded_coverage50": false
+      },
+      "passed_development_screen": false
+    },
+    {
+      "proposals": 100,
+      "checks": {
+        "AP": false,
+        "AP75": false,
+        "p50": false,
+        "worst_category": true,
+        "crowded_coverage50": false
+      },
+      "passed_development_screen": false
+    }
+  ],
+  "report_script_sha256": "1d0c5cbf9782ba4ce429d08b94aa0477c148c9691feca19593f16ecb490e24c2",
+  "evidence_sha256": {
+    "metrics.csv": "b4517f86142759b6b02c1bb014c48dee731cd8f2bdb15a48fc8b42f10e6e2c7d",
+    "coverage.csv": "92bb7bd5b5f5fc4ff95d9171dd5d869e05c05f02937a7f847bb7c4a62713c08e",
+    "parity.json": "3d0c36224ba8ce057f6cddb08527536b070bec91c0c26d219b73fe609fe7a3f5",
+    "manifest.json": "af0058d47b36e0232fefa5eca33ea4f0b915c9d1840541c4c4ac7b4e59d3b7c0",
+    "config.yaml": "18a8d459875b49a45c07382025d73471f975d565cb596389744cdc65a0d3eb3c",
+    "COMPLETE.json": "0a55605174b835590e8bc9f9045ff954ba117f56dc3bbed571a72d74f0e3e005"
+  },
+  "aggregation": "Mean inference seeds within checkpoint, then equal weight across checkpoints; p50 reduction averages checkpoint ratios",
+  "scope": "SDD development screen of frozen H4 checkpoints, not small-P retraining or G4 confirmation"
+}

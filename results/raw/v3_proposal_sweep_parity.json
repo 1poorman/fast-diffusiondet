@@ -1,0 +1,32 @@
+[
+  {
+    "train_seed": 10,
+    "image_id": 0,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 10,
+    "image_id": 1,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 11,
+    "image_id": 0,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 11,
+    "image_id": 1,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 12,
+    "image_id": 0,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 12,
+    "image_id": 1,
+    "bit_exact": true
+  }
+]

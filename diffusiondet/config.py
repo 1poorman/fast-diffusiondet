@@ -17,6 +17,9 @@ def add_diffusiondet_config(cfg):
     cfg.MODEL.DiffusionDet = CN()
     cfg.MODEL.DiffusionDet.NUM_CLASSES = 80
     cfg.MODEL.DiffusionDet.NUM_PROPOSALS = 300
+    # 0 follows NUM_PROPOSALS (legacy); positive value fixes pre-NMS top-k
+    # independently of the number of queries for proposal-budget experiments.
+    cfg.MODEL.DiffusionDet.INFERENCE_TOPK = 0
 
     # RCNN Head.
     cfg.MODEL.DiffusionDet.NHEADS = 8

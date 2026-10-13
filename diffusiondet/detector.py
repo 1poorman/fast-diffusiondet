@@ -75,6 +75,9 @@ class DiffusionDet(nn.Module):
         self.in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
         self.num_classes = cfg.MODEL.DiffusionDet.NUM_CLASSES
         self.num_proposals = cfg.MODEL.DiffusionDet.NUM_PROPOSALS
+        self.inference_topk = cfg.MODEL.DiffusionDet.INFERENCE_TOPK
+        if self.inference_topk < 0:
+            raise ValueError("INFERENCE_TOPK must be nonnegative")
         self.hidden_dim = cfg.MODEL.DiffusionDet.HIDDEN_DIM
         self.num_heads = cfg.MODEL.DiffusionDet.NUM_HEADS
 
@@ -399,7 +402,7 @@ class DiffusionDet(nn.Module):
 
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
-    def forward(self, batched_inputs, do_postprocess=True, *, teacher=None):
+    def forward(self, batched_inputs, do_postprocess=True, *, teacher=None, inference_noise=None):
         """
         Args:
             batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
@@ -414,6 +417,8 @@ class DiffusionDet(nn.Module):
                 * "height", "width" (int): the output resolution of the model, used in inference.
                   See :meth:`postprocess` for details.
         """
+        if inference_noise is not None and self.training:
+            raise ValueError("inference_noise is evaluation-only")
         if teacher is not None:
             if not self.training or teacher.training or teacher is self:
                 raise ValueError("Distillation requires a training student and a separate eval teacher")
@@ -423,6 +428,11 @@ class DiffusionDet(nn.Module):
         images, images_whwh = self.preprocess_image(batched_inputs)
         if isinstance(images, (list, torch.Tensor)):
             images = nested_tensor_from_tensor_list(images)
+        if inference_noise is not None:
+            expected = (len(batched_inputs), self.num_proposals, 4)
+            if (inference_noise.shape != expected or inference_noise.device != images.tensor.device
+                    or inference_noise.dtype != images.tensor.dtype):
+                raise ValueError(f"inference_noise must have shape {expected} and match image tensor device/dtype")
 
         # Feature Extraction.
         src = self.backbone(images.tensor)
@@ -435,7 +445,7 @@ class DiffusionDet(nn.Module):
         if not self.training:
             # M1: 经 solvers/ 分发（SOLVER=ddim 时走逐 bit 等价路径）
             from .solvers import run_sampler
-            results = run_sampler(self, batched_inputs, features, images_whwh, images)
+            results = run_sampler(self, batched_inputs, features, images_whwh, images, noise=inference_noise)
             return results
 
         if self.training:
@@ -689,13 +699,15 @@ class DiffusionDet(nn.Module):
         if self.use_focal or self.use_fed_loss:
             scores = torch.sigmoid(box_cls)
             labels = torch.arange(self.num_classes, device=self.device). \
-                unsqueeze(0).repeat(self.num_proposals, 1).flatten(0, 1)
+                unsqueeze(0).repeat(box_cls.shape[1], 1).flatten(0, 1)
 
             for i, (scores_per_image, box_pred_per_image, image_size) in enumerate(zip(
                     scores, box_pred, image_sizes
             )):
                 result = Instances(image_size)
-                scores_per_image, topk_indices = scores_per_image.flatten(0, 1).topk(self.num_proposals, sorted=False)
+                keep_count = self.inference_topk or self.num_proposals
+                keep_count = min(keep_count, scores_per_image.numel())
+                scores_per_image, topk_indices = scores_per_image.flatten(0, 1).topk(keep_count, sorted=False)
                 labels_per_image = labels[topk_indices]
                 box_pred_per_image = box_pred_per_image.view(-1, 1, 4).repeat(1, self.num_classes, 1).view(-1, 4)
                 box_pred_per_image = box_pred_per_image[topk_indices]
