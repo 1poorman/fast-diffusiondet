@@ -1,0 +1,16 @@
+{
+  "annotation_sha256": "c8fb0b104879b25c8841532d0905b0ab4b84ac22448efbfb93b5fe70c44f8700",
+  "prediction_sha256": {
+    "runs/v3/head_sweep_20261011/seed0_d4_no_weights/coco_instances_results.json": "c16036e2dcd74ca6b3137bed86b4c0e2f23beb5d4a4d604c72f311bc5d775577",
+    "runs/v3/head_sweep_20261011/seed1_d4_no_weights/coco_instances_results.json": "d9b26ba310bbc989fe2c09d97525b57abedcb9f833309b33a7d58a08a0efad13",
+    "runs/v3/head_sweep_20261011/seed2_d4_no_weights/coco_instances_results.json": "6715a9c0cf48004736080ab381965f45dd5f3bbea97b198979bd70c3fe172fcf",
+    "runs/v3/head_sweep_20261011/seed0_d6_no_weights/coco_instances_results.json": "2e18b20206519c5b67a2ed6caf275bc301b6a4c4da46f79eaf157eafdb6e15b7",
+    "runs/v3/head_sweep_20261011/seed1_d6_no_weights/coco_instances_results.json": "624e41674193ade0252506f3e9095cf3ac7c7644157aabeebced715daac25153",
+    "runs/v3/head_sweep_20261011/seed2_d6_no_weights/coco_instances_results.json": "617dc2d40439e06485b4e8ee5047e6e26ab1809ffe5465e4c927a1bceb955db3"
+  },
+  "script_sha256": "97df87c56d0ee60403e7a717de5c85cb4f630687ab662a4bbebe5c3a2f1b3211",
+  "images": 750,
+  "objects": 1775,
+  "definition": "Post-NMS score-sorted greedy same-class matching at IoU0.5. Remaining errors: duplicate, wrong class IoU>=0.5, same-class 0.1<=IoU<0.5, background. Coverage is many-to-one and not official AR. Correlation uses same-class IoU>=0.1 predictions.",
+  "limitation": "Descriptive on the reused development set; no AP attribution, no threshold tuning, no causal model-gain estimate."
+}
