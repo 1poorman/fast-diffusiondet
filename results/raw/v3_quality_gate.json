@@ -1,0 +1,37 @@
+{
+  "quality_gate": {
+    "mean_delta_AP": -0.170222468980081,
+    "mean_delta_AP75": -0.7198050943310174,
+    "positive_pairs": 1,
+    "delta_AP_sample_sd": 0.21435998703555134,
+    "p50_change_percent": 0.03702813247306036,
+    "worst_category": "Anthracnose Fruit Rot",
+    "worst_category_delta_AP": -0.632774378289227,
+    "checks": {
+      "AP": false,
+      "AP75": false,
+      "positive_pairs": false,
+      "latency": true,
+      "worst_category": true
+    },
+    "passed_development_screen": false
+  },
+  "matched_depth_comparison": {
+    "mean_H4_minus_H6_AP": -0.2782886946228397,
+    "mean_H4_minus_H6_AP75": 0.25306874682206626,
+    "H4_p50_reduction_percent": 17.75722097016497,
+    "scope": "Equal 600-step fine-tuning; includes depth and auxiliary supervision changes; not the Q1 loss effect"
+  },
+  "control_max_abs_AP_difference": 0.0,
+  "training_pairs": 3,
+  "new_training_runs": 6,
+  "evaluation_rows": 27,
+  "report_script_sha256": "72af800167b9a200c0f944c0855d43a04472402429b8f82d76871ffe53faf476",
+  "evidence_sha256": {
+    "metrics.csv": "3b021bdf5d84cfda7e5c818e13f7a8b5d7a988cafbaab8aed9a0ba9f9372405c",
+    "manifest.json": "219e38a96d3263e2a2ac323329a8f35077dcb94a1311efbd36e150184fb198a4",
+    "control_replay.json": "aa5635c06d26173e84f28fe3b8152a85107d16668108843fabea7f6344ba5a09",
+    "COMPLETE.json": "87669f915a65086af56e574eec77927dfb76cd80f943c8f421fa680a2d7d98ce"
+  },
+  "scope": "SDD development comparison; inference seeds averaged within each model; independent confirmation still required"
+}

@@ -1,0 +1,40 @@
+{
+  "annotation_sha256": "c8fb0b104879b25c8841532d0905b0ab4b84ac22448efbfb93b5fe70c44f8700",
+  "prediction_sha256": {
+    "runs/v3/quality_20261013/seed10_h4_focal/eval_seed0/coco_instances_results.json": "398eb156e9bb419b14d98f09f404d4b13b82e59215a72b6a2c6884581bf3a375",
+    "runs/v3/quality_20261013/seed10_h4_focal/eval_seed1/coco_instances_results.json": "7c4196e68d9169f15d2c40dc348d18e4d8200c26b476a0e6b5ba495c9aa50011",
+    "runs/v3/quality_20261013/seed10_h4_focal/eval_seed2/coco_instances_results.json": "584663c054521eedf78500160a9b9aa1816206c444fd0dd76debaa63adee8e2e",
+    "runs/v3/quality_20261013/seed10_h4_quality/eval_seed0/coco_instances_results.json": "6922165d24e52ae8a626126609b66ed999727dabd68412ce31bbac21635eeb8d",
+    "runs/v3/quality_20261013/seed10_h4_quality/eval_seed1/coco_instances_results.json": "5d19009305be73f7d44cce0f950ab1373d08de58243e955f89b28c6f1375b8aa",
+    "runs/v3/quality_20261013/seed10_h4_quality/eval_seed2/coco_instances_results.json": "092c6767ece42dcba59c08b011a8eba31e4a47b13d3d7c80d99659c7a965cbe3",
+    "runs/v3/quality_20261013/seed10_h6_focal/eval_seed0/coco_instances_results.json": "ad5866e78918f37fc86ec4d93b8348f66eaaefc51d019b334abe45013d37dc68",
+    "runs/v3/quality_20261013/seed10_h6_focal/eval_seed1/coco_instances_results.json": "3af537dfbf0b0fcee9ca6cecfb0a4fb1fbafe6047812cff321f01175632fa5c6",
+    "runs/v3/quality_20261013/seed10_h6_focal/eval_seed2/coco_instances_results.json": "ff6bf7812253ef2441b5b98a9ac289575adfaa81fdfcf09f7fa4013a879af32b",
+    "runs/v3/quality_20261013/seed11_h4_focal/eval_seed0/coco_instances_results.json": "f8abf97a92f58a39edef821645ea962293fd635463ea923f16417e41c44ef64a",
+    "runs/v3/quality_20261013/seed11_h4_focal/eval_seed1/coco_instances_results.json": "64f798a697b7fe6c3f8ac2b50ee02c3abe8b49fb031fbddcef875b6deff8a04c",
+    "runs/v3/quality_20261013/seed11_h4_focal/eval_seed2/coco_instances_results.json": "fbcfe339fef095cdf4e5a9b927320cd057330a7291388114b8b54dbb0a403a5e",
+    "runs/v3/quality_20261013/seed11_h4_quality/eval_seed0/coco_instances_results.json": "c23c8604bb5215ce0047f0ec5e2b70a13f5d0e8cb9d3023a84bb636e530cada5",
+    "runs/v3/quality_20261013/seed11_h4_quality/eval_seed1/coco_instances_results.json": "2bab8fa83a0794027d31a6ed84e8673d645961b9d8192cb948c0b0540122968d",
+    "runs/v3/quality_20261013/seed11_h4_quality/eval_seed2/coco_instances_results.json": "1d748f5d2205fc6050811bda2169d02ff4132eb722522d3715ed534141736365",
+    "runs/v3/quality_20261013/seed11_h6_focal/eval_seed0/coco_instances_results.json": "c2bc11ee3dc67188e8216e10bace7cf9e86914ce2b10866cf3a705e3fb68b085",
+    "runs/v3/quality_20261013/seed11_h6_focal/eval_seed1/coco_instances_results.json": "8f4693f08de06ea289587cff2652be96ac70906d825244c78d5997a30eb987ff",
+    "runs/v3/quality_20261013/seed11_h6_focal/eval_seed2/coco_instances_results.json": "28b65a7561681f87353074978c0ebd356bf1e36605c40615227ac94dd4cc781e",
+    "runs/v3/quality_20261013/seed12_h4_focal/eval_seed0/coco_instances_results.json": "6e3df4ca585e872cf52652d18cd6148f712ecb8f6cc4737479abcebecf6d7e3c",
+    "runs/v3/quality_20261013/seed12_h4_focal/eval_seed1/coco_instances_results.json": "789a6ae639affed71011c4b244ed6fcd5eb61ffb8cbb6a456b4ef407af5984eb",
+    "runs/v3/quality_20261013/seed12_h4_focal/eval_seed2/coco_instances_results.json": "5fbe50c577d329f30a45ebe7463e14da6521146f034a77b14c1b3d573b1fe9b7",
+    "runs/v3/quality_20261013/seed12_h4_quality/eval_seed0/coco_instances_results.json": "02034a3dd39868d21372a413bcf896ca67135041eeb29eb7737c62aeb5d07128",
+    "runs/v3/quality_20261013/seed12_h4_quality/eval_seed1/coco_instances_results.json": "dbf1430648894bcbe608de26fd0767c18f2b72cfc0fd3b5bd449e42c6d207748",
+    "runs/v3/quality_20261013/seed12_h4_quality/eval_seed2/coco_instances_results.json": "2a1e70c160138c01a997b0806f282ecf90b9c50c148549762b9501be4ff250db",
+    "runs/v3/quality_20261013/seed12_h6_focal/eval_seed0/coco_instances_results.json": "ed8e9327f10d4814d9a5a445295a119975ddf860bb1f345f40a586fe7da8dee3",
+    "runs/v3/quality_20261013/seed12_h6_focal/eval_seed1/coco_instances_results.json": "673f797bf3b8265b13ab6ee7e23007a238a4d4c78adcbd518420c27e6efb7e2d",
+    "runs/v3/quality_20261013/seed12_h6_focal/eval_seed2/coco_instances_results.json": "fa1417efbb3e6a246a3090aa31f7dcc23933447484f01b3ac6849927d1817f6f"
+  },
+  "script_sha256": "a02778cdb93320871e46d42f83864d0552bed1b5f150a56c818cf1597f1c99e3",
+  "audit_module_sha256": "97df87c56d0ee60403e7a717de5c85cb4f630687ab662a4bbebe5c3a2f1b3211",
+  "thresholds": [
+    0.05,
+    0.3,
+    0.5
+  ],
+  "scope": "Descriptive fixed-threshold counts, not TIDE/AP attribution; GT coverage is many-to-one, not COCO AR; no deployment threshold selection"
+}
