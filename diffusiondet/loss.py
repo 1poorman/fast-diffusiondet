@@ -42,6 +42,12 @@ class SetCriterionDynamicK(nn.Module):
         self.losses = losses
         self.use_focal = use_focal
         self.use_fed_loss = cfg.MODEL.DiffusionDet.USE_FED_LOSS
+        self.final_class_loss = cfg.MODEL.DiffusionDet.FINAL_CLASS_LOSS
+        if self.final_class_loss not in ("focal", "quality_focal"):
+            raise ValueError("FINAL_CLASS_LOSS must be focal or quality_focal")
+        if self.final_class_loss == "quality_focal" and (not use_focal or self.use_fed_loss):
+            raise ValueError("Quality focal requires sigmoid focal without federated loss")
+        self.last_quality_stats = {}
         if self.use_fed_loss:
             self.fed_loss_num_classes = 50
             from detectron2.data.detection_utils import get_fed_loss_cls_weights
@@ -269,8 +275,14 @@ class SetCriterionDynamicK(nn.Module):
 
         # Compute all the requested losses
         losses = {}
+        self.last_quality_stats = {}
         for loss in self.losses:
-            losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
+            if loss == 'labels' and self.final_class_loss == "quality_focal":
+                from .quality import matched_quality_loss
+                losses['loss_ce'], self.last_quality_stats = matched_quality_loss(
+                    outputs, targets, indices, alpha=self.focal_loss_alpha, beta=self.focal_loss_gamma)
+            else:
+                losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:

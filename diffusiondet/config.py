@@ -59,6 +59,8 @@ def add_diffusiondet_config(cfg):
     cfg.MODEL.DiffusionDet.ALPHA = 0.25
     cfg.MODEL.DiffusionDet.GAMMA = 2.0
     cfg.MODEL.DiffusionDet.PRIOR_PROB = 0.01
+    # Q1 changes only the final training classification loss, never inference.
+    cfg.MODEL.DiffusionDet.FINAL_CLASS_LOSS = "focal"
 
     # Dynamic K
     cfg.MODEL.DiffusionDet.OTA_K = 5
