@@ -16,6 +16,7 @@
 > [P1候选框预算](docs/v3/PROPOSAL_BUDGET.md) 已完成36次全量评测：小P提速不足1%且AP下降，保留P300。
 > [Q1质量监督](docs/v3/QUALITY_SUPERVISION.md) 已完成27次全量评测：AP−0.170、AP75−0.720，保持原focal。
 > 同预算H6为68.056 AP、34.152ms；H4少0.278 AP、p50低17.76%，尚未达联合目标；均为SDD开发集结果。
+> [L1耗时审计](docs/v3/LATENCY_PROFILE.md) 已完成27组计时：减框不减少ROI同步，后续优先独立验证骨干精度模式与ROI执行优化。
 >
 > - 蓝图与里程碑：**[docs/BLUEPRINT.md](docs/BLUEPRINT.md)**
 > - 实时工作状态：**[docs/PROGRESS.md](docs/PROGRESS.md)**

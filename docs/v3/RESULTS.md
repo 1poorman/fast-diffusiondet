@@ -1,6 +1,6 @@
 # V3 验证记录
 
-更新：2026-10-14。G1/G2/T1/P1/Q1均已完成；各节保留对应协议、结果和复现入口。
+更新：2026-10-14。G1/G2/T1/P1/Q1/L1均已完成；各节保留对应协议、结果和复现入口。
 
 ## G0：实现正确性
 
@@ -470,4 +470,122 @@ score-IoU Spearman为0.543/0.546，未显示明显排序改善。训练最后20�
   runs/v3/quality_20261013
 /home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_quality_diagnostics.py \
   runs/v3/quality_20261013
+```
+
+## L1：冻结模型的计算成本与同步诊断（2026-10-14完成）
+
+**减框保留了大量逐级调用和同步，下一步优先独立验证骨干精度模式与ROI执行优化。**
+本轮没有训练或修改生产模型；沿用三份T1 H4和三份Q1 H6原focal权重，
+完成H4/P300、H4/P100、H6/P300 × 推理seed0/1/2，共27个计时单元。
+协议运行前固定于[LATENCY_PROFILE.md](LATENCY_PROFILE.md)，所有臂都是GPU1、FP32、
+TF32 off、NFE1、batch1、800/1333、共享300框噪声池、固定pre-NMS top-k300。
+每单元前20图预热、随后同200图计时；这是成本诊断，**不计算子集AP**。
+
+### 无插桩响应时间与波动
+
+| 配置 | p50 ms | p95 ms | 均值 ms | event相对plain的p50变化 |
+|---|---:|---:|---:|---:|
+| H4/P300 | 28.645 | 30.236 | 28.651 | +6.59% |
+| H4/P100 | 27.473 | 29.264 | 27.760 | +5.76% |
+| H6/P300 | 33.238 | 34.748 | 33.434 | +8.21% |
+
+分位数先逐单元计算，再平均推理seed和训练seed；相对变化先平均同checkpoint的推理seed，
+再计算比率。plain是无包装的完整模型调用加噪声生成，包含前后CUDA同步，
+不含读取/CPU resize/设置随机种子/输出校验。
+
+| 训练seed | P100相对P300的p50降幅 | H4/P300相对H6/P300的p50降幅 |
+|---|---:|---:|
+| 10 | 2.05% | 13.41% |
+| 11 | 5.37% | 13.72% |
+| 12 | 4.87% | 14.32% |
+| 均值 | 4.10% | 13.82% |
+
+单个训练/推理seed配对的P100降幅范围为−10.17%至+12.50%，不把均值4.10%解释为
+跨运行稳定收益。event−plain的单元变化范围分别为H4/P300的−3.15%至+19.21%、
+H4/P100的−3.52%至+8.06%、H6的+7.54%至+8.91%。两遍固定先plain后event，
+差值含插桩影响及时间漂移；负值不能解释为插桩优化了模型，也不能据此简单扣除开销。
+
+本轮计时与P1（P100降幅0.93%）及Q1（H4相对H6降幅17.76%）不同，保留各自原始表格。
+这些运行没有锁定CPU调度/GPU时钟；本轮不据微小差值作新模型晋级，也不改写P1/Q1的判定。
+P100的已知AP损失仍以P1全验证为准，不能用L1的局部计时抵消它。
+
+![L1 uninstrumented latency and exclusive stream intervals](../../results/figures/v3_latency.png)
+
+### 嵌套event区间：骨干与检测头都占主要成本
+
+下表按逐图嵌套区间减去直接子区间后求均值，列出的组件互不重复。
+event区间包含GPU执行与CPU供给间隙，**不是纯kernel时间**；只在整次调用末尾同步，
+没有在每段之间人为添加同步。
+
+| 区间均值，ms | H4/P300 | H4/P100 | H6/P300 |
+|---|---:|---:|---:|
+| 预处理/H2D | 1.153 | 1.131 | 1.124 |
+| Backbone | 12.538 | 12.526 | 12.506 |
+| ROI池化 | 5.475 | 4.818 | 7.750 |
+| Attention | 1.122 | 1.081 | 1.548 |
+| DynamicConv | 3.116 | 1.494 | 4.664 |
+| 框解码 | 2.232 | 1.991 | 2.996 |
+| 其余头部计算与调度 | 2.852 | 4.184 | 3.627 |
+| 采样/选择/NMS/输出等余项 | 2.106 | 1.995 | 1.979 |
+| 整次调用stream区间 | 30.594 | 29.220 | 36.195 |
+
+H4/P300的backbone占约41.0%，完整head合计14.798ms、约48.4%；attention只占约3.7%。
+P300→100使DynamicConv区间减少约1.622ms，ROI减少约0.657ms，但其余区间并未同比缩短。
+更快的kernel会改变CPU提交与GPU队列等待的位置，不能将各段差值解释为完全独立的算子收益。
+同样，H4/P300的ROI主机调用区间约10.333ms，高于它的stream区间5.475ms；
+主机区间包含等待之前已提交GPU工作的时间，不能说ROI本身就消耗10ms纯CPU计算。
+
+### 算子轨迹：P100没有减少同步或kernel启动次数
+
+全部计时结束后才启动CUPTI profiler。每份checkpoint/臂固定推理seed0、计时窗口前10图，
+共9条轨迹；对同步事件按同一主机线程的最内层用户区间和CPU算子归属。
+
+| 每图轨迹统计 | H4/P300 | H4/P100 | H6/P300 |
+|---|---:|---:|---:|
+| CUDA kernel数 | 877.0 | 904.2 | 1136.7 |
+| kernel活动区间并集，ms | 17.621 | 15.176 | 20.279 |
+| ROI内stream同步 | 28 | 28 | 42 |
+| 其中nonzero | 16 | 16 | 24 |
+| 其中scalar读取（item/_local_scalar_dense） | 8 | 8 | 12 |
+| 其中copy | 4 | 4 | 6 |
+
+ROI每一级都有7次同步，减框没有删掉这些调用；其余预处理/选择/输出每图另有9次stream同步。
+外层基准的device同步另列为outside_call，不计入ROI。框数变小后kernel启动总数甚至略增，
+因此不能按理论P²复杂度推算总响应时间。轨迹中attention实际使用
+`aten::_scaled_dot_product_efficient_attention`，不将其称为FlashAttention。
+
+kernel并集按实际CUDA时间戳去重，避免跨stream重叠重复计数；profiler有明显扰动，
+且只覆盖10图，不能将17.621ms与前表200图的plain或event时长直接相减来估算“纯CPU瓶颈”。
+同步次数是机制证据，不是移除同步后的可实现加速预测。
+
+### 后续执行方向与可复现产物
+
+1. 单独比较骨干混合精度，其余路径维持FP32，并重新全量验证AP/AP75/逐类指标。
+   骨干是较大的可干预成本，但尚未验证该精度模式能保持检测质量。
+2. 独立验证使用CPU已知框数构造池化索引，减少动态长度/格式转换同步。
+   先检查数值与梯度/输出等价，再测无插桩速度；按层nonzero等剩余开销另行评估。
+   不修改安装依赖、不直接删除有效性检查，也不预先声称能达到10%或更高提速。
+
+不继续搜索更多固定P值，不将L1解释为已经训练或实现了新加速模型。
+六份权重、源码/配置/标注/外部pooler快照、逐图区间、分位数、执行H/P及9条轨迹哈希均通过审计。
+5400次event与90次profiler输出对拍逐字节一致；13项新审计测试通过，
+连同既有检测头/候选预算测试共26项通过。运行和汇总均exit code 0，GPU1结束后0 MiB。
+
+产物：
+[54份计时汇总](../../results/raw/v3_latency.csv) ·
+[总体汇总](../../results/raw/v3_latency_summary.csv) ·
+[训练seed配对](../../results/raw/v3_latency_paired.csv) ·
+[嵌套区间](../../results/raw/v3_latency_scopes.csv) ·
+[算子记录](../../results/raw/v3_latency_operators.csv) ·
+[同步区间归属](../../results/raw/v3_latency_sync.csv) ·
+[同步算子归属](../../results/raw/v3_latency_sync_operators.csv) ·
+[轨迹摘要](../../results/raw/v3_latency_profiles.json) ·
+[完整审计](../../results/raw/v3_latency_audit.json) ·
+[manifest](../../results/raw/v3_latency_manifest.json) ·
+[配置](../../results/raw/v3_latency_config.yaml)。
+完整逐图记录、压缩Chrome trace和源码快照：`runs/v3/latency_20261014/`。
+
+```bash
+/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_summarize_latency.py \
+  runs/v3/latency_20261014
 ```
