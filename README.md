@@ -6,14 +6,16 @@
 > 系统性对比 **DDIM / EDM(Heun+Karras) / PFGM++(重尾泊松流) / DPM-Solver-v3(EMS 高阶多步)**
 > 在**同等 NFE 预算**下的检测精度与推理耗时。
 >
-> **当前研究（2026-10-13）：V3 单步检测头压缩与定位增强。**
+> **当前研究（2026-10-14）：V3 单步检测头压缩与定位增强。**
 > v1/v2 已显示继续减少采样误差的收益有限；新一轮转向 NFE=1 内部的检测头深度、
 > 注意力执行优化，以及后续浅层蒸馏/分布定位。
 > [新蓝图](docs/v3/BLUEPRINT.md) · [技术检索](docs/v3/RESEARCH.md) ·
 > [验证结果](docs/v3/RESULTS.md) · [当前状态](docs/v3/PROGRESS.md)
-> 已完成真实四级学生的蒸馏和训练时刻配对验证；600步uniform候选为67.777 AP、27.625ms。
+> 已完成真实四级学生的配对验证；600步uniform H4为67.777 AP，本轮p50为28.087ms。
 > [T1时刻对齐](docs/v3/TIME_ALIGNMENT.md) 总体AP提升但AP75未过门槛，保持uniform默认。
 > [P1候选框预算](docs/v3/PROPOSAL_BUDGET.md) 已完成36次全量评测：小P提速不足1%且AP下降，保留P300。
+> [Q1质量监督](docs/v3/QUALITY_SUPERVISION.md) 已完成27次全量评测：AP−0.170、AP75−0.720，保持原focal。
+> 同预算H6为68.056 AP、34.152ms；H4少0.278 AP、p50低17.76%，尚未达联合目标；均为SDD开发集结果。
 >
 > - 蓝图与里程碑：**[docs/BLUEPRINT.md](docs/BLUEPRINT.md)**
 > - 实时工作状态：**[docs/PROGRESS.md](docs/PROGRESS.md)**
