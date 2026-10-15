@@ -38,6 +38,8 @@ def add_diffusiondet_config(cfg):
     cfg.MODEL.DiffusionDet.ATTENTION_NEED_WEIGHTS = True
     # Evaluation only: autocast backbone to FP16, then restore FPN features to FP32.
     cfg.MODEL.DiffusionDet.EVAL_BACKBONE_PRECISION = "fp32"
+    # Avoid CUDA repeat-count synchronization when forming ROI batch indices.
+    cfg.MODEL.DiffusionDet.ROI_POOLER_KNOWN_COUNTS = False
     # V3: used only when an explicit frozen teacher is passed during training.
     cfg.MODEL.DiffusionDet.KD_TEMPERATURE = 2.0
     cfg.MODEL.DiffusionDet.KD_MIN_IOU = 0.5

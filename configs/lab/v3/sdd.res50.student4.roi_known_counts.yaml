@@ -1,0 +1,4 @@
+_BASE_: "sdd.res50.student4.yaml"
+MODEL:
+  DiffusionDet:
+    ROI_POOLER_KNOWN_COUNTS: True

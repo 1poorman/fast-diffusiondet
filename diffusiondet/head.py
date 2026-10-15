@@ -24,6 +24,8 @@ import torch.nn.functional as F
 from detectron2.modeling.poolers import ROIPooler
 from detectron2.structures import Boxes
 
+from .roi_pooler import KnownCountROIPooler
+
 
 _DEFAULT_SCALE_CLAMP = math.log(100000.0 / 16)
 
@@ -138,7 +140,8 @@ class DynamicHead(nn.Module):
         # Check all channel counts are equal
         assert len(set(in_channels)) == 1, in_channels
 
-        box_pooler = ROIPooler(
+        pooler_class = KnownCountROIPooler if cfg.MODEL.DiffusionDet.ROI_POOLER_KNOWN_COUNTS else ROIPooler
+        box_pooler = pooler_class(
             output_size=pooler_resolution,
             scales=pooler_scales,
             sampling_ratio=sampling_ratio,
