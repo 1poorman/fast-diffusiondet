@@ -230,3 +230,16 @@ Cherry_powdery_mildew在train/val均0标注、test有10图。完整检查范围�
 产物归档至`results/raw/v3_data_readiness*`。下一步先恢复或按固定预算重建domain权重；
 WHEAT具有完整12类训练覆盖，但历史val使用意味着它仍不是新独立终测。保留原pooler默认。
 按路径修复、审计与归档、总览文档分批提交；逐图记录继续保留于忽略的run目录。
+
+## W1 WHEAT基线重建与执行确认（进行中）
+
+用户继续后，先固定[WHEAT_CONFIRMATION.md](WHEAT_CONFIRMATION.md)：从现存COCO预训练
+重建H6/P300 WHEAT模型，seed10/11/12各1,400次尝试，不在训练中评测或按val选checkpoint。
+沿用历史bs8/AdamW1e-4/AMP训练预算；只关闭无用attention weights，保持uniform、原focal、原pooler。
+显式迁移检查载入537个tensor，仅12个分类层tensor因80→12类重新初始化；D1全部818张WHEAT图hash复核。
+
+10步管线冒烟`runs/v3/wheat_rebuild_smoke_20261015/`完成：7次初始AMP缩放跳步，3次实际更新，
+峰值allocated显存7.582GiB；短冒烟不能判定正式训练健康。正式目录`runs/v3/wheat_rebuild_20261015/`
+已在GPU1启动，各模型固定1,400次尝试，前100次后跳步比例须严格低于1%。大型产物保持忽略。
+待三份末步权重完成，再做18次全123图评测、9组20图warmup+103张独立图计时，最后6组profiler。
+WHEAT val历史已使用，结果只能确认跨数据集执行，不视作新独立终测或新硬件验证。

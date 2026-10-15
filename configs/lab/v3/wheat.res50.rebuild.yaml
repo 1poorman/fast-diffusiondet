@@ -1,0 +1,13 @@
+_BASE_: "../wheat.res50.bs8.yaml"
+MODEL:
+  DiffusionDet:
+    NUM_HEADS: 6
+    EVAL_NUM_HEADS: 0
+    ATTENTION_NEED_WEIGHTS: False
+    TRAIN_T_DIST: "uniform"
+    SAMPLE_STEP: 1
+    BOX_RENEWAL: False
+    USE_ENSEMBLE: False
+DATALOADER:
+  NUM_WORKERS: 0
+OUTPUT_DIR: "runs/v3/wheat_rebuild"
