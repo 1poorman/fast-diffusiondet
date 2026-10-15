@@ -84,4 +84,3 @@ def test_config_switch_keeps_full_head_outputs_gradients_and_checkpoint_keys():
         if left.grad is not None:
             assert torch.isfinite(right.grad).all()
             torch.testing.assert_close(left.grad, right.grad, rtol=0, atol=0)
-

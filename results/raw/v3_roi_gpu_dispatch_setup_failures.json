@@ -1,0 +1,115 @@
+{
+  "note": "Setup errors before numerical/model comparison; retained without overwriting. No tolerance changes.",
+  "runs": [
+    {
+      "run": "runs/v3/roi_dispatch_checks_20261015",
+      "stage": "kernel launch/compilation",
+      "failure": {
+        "error": "_dispatch() got an unexpected keyword argument 'enable_fp_fusion'",
+        "passed": false
+      },
+      "failure_sha256": "69fc88619a08b95fea2878ddf3a069b81ba2080cdaaa24e490fdef754187aba1",
+      "manifest": {
+        "torch": "2.1.2+cu121",
+        "triton": "2.1.0",
+        "gpu": "1",
+        "source_sha256": {
+          "scripts/v3_roi_dispatch_checks.py": "2b8b3523a7fc194cb5399d1889a4a6666683aee40ccbf26f2f5f199e003a947c",
+          "diffusiondet/roi_gpu_dispatch.py": "bb86dbcbe79fbc365d37d1d43056d23034546f7d2ebb82180452a91308296ec1",
+          "diffusiondet/roi_gpu_dispatch_kernel.py": "57ef1fcc3499768ba0c879f36198b3326eaaebf72eadf289fcf675ccc540de0c",
+          "diffusiondet/roi_pooler.py": "47c0fd86696ecfbb369bd55595d072ddfc77a6ce153e1cd5aa4f0328c82ec285",
+          "docs/v3/ROI_GPU_DISPATCH.md": "f322aa6cb950491c6046d976716a6ce2333818d6b0bde5ef95b1402f63343667"
+        },
+        "cache": "/home/huachenghao/codes/fast-diffusiondet/runs/v3/roi_dispatch_checks_20261015/triton_cache"
+      }
+    },
+    {
+      "run": "runs/v3/roi_dispatch_checks_launch_fixed_20261015",
+      "stage": "kernel launch/compilation",
+      "failure": {
+        "error": "module 'triton.language' has no attribute 'div_rn'",
+        "passed": false
+      },
+      "failure_sha256": "725debc80d31f6a114c6394966fb159cdc609f1a16421f7eca4529e1df798675",
+      "manifest": {
+        "torch": "2.1.2+cu121",
+        "triton": "2.1.0",
+        "gpu": "1",
+        "source_sha256": {
+          "scripts/v3_roi_dispatch_checks.py": "2b8b3523a7fc194cb5399d1889a4a6666683aee40ccbf26f2f5f199e003a947c",
+          "diffusiondet/roi_gpu_dispatch.py": "bb86dbcbe79fbc365d37d1d43056d23034546f7d2ebb82180452a91308296ec1",
+          "diffusiondet/roi_gpu_dispatch_kernel.py": "4708a7bed7285f017034963219529f5614bbf632896982e5e6516f5744bcf0d2",
+          "diffusiondet/roi_pooler.py": "47c0fd86696ecfbb369bd55595d072ddfc77a6ce153e1cd5aa4f0328c82ec285",
+          "docs/v3/ROI_GPU_DISPATCH.md": "f322aa6cb950491c6046d976716a6ce2333818d6b0bde5ef95b1402f63343667"
+        },
+        "cache": "/home/huachenghao/codes/fast-diffusiondet/runs/v3/roi_dispatch_checks_launch_fixed_20261015/triton_cache"
+      }
+    },
+    {
+      "run": "runs/v3/roi_dispatch_checks_division_fixed_20261015",
+      "stage": "kernel launch/compilation",
+      "failure": {
+        "error": "at 8:67:def _dispatch(F0, F1, F2, F3, Boxes, Levels, Out,\n              H0, W0, H1, W1, H2, W2, H3, W3,\n              CHANNELS: tl.constexpr, PH: tl.constexpr, PW: tl.constexpr,\n              S0: tl.constexpr, S1: tl.constexpr, S2: tl.constexpr, S3: tl.constexpr, BLOCK: tl.constexpr):\n    roi = tl.program_id(0)\n    level = tl.load(Levels + roi)\n    if level == 0:\n        _sample(F0, Boxes, Out, roi, H0, W0, CHANNELS, PH, PW, S0, BLOCK)\n                                                                   ^\nAttributeError(\"'float' object has no attribute 'type'\")",
+        "passed": false
+      },
+      "failure_sha256": "c86618a240c995a6131b9059b0edaa5590c61568c2fb20cb004471fe9db89e4a",
+      "manifest": {
+        "torch": "2.1.2+cu121",
+        "triton": "2.1.0",
+        "gpu": "1",
+        "source_sha256": {
+          "scripts/v3_roi_dispatch_checks.py": "2b8b3523a7fc194cb5399d1889a4a6666683aee40ccbf26f2f5f199e003a947c",
+          "diffusiondet/roi_gpu_dispatch.py": "bb86dbcbe79fbc365d37d1d43056d23034546f7d2ebb82180452a91308296ec1",
+          "diffusiondet/roi_gpu_dispatch_kernel.py": "59afb406d5a3fb7ed598b344637a43f5aca846f3f27b335dcdd35d53c2151085",
+          "diffusiondet/roi_pooler.py": "47c0fd86696ecfbb369bd55595d072ddfc77a6ce153e1cd5aa4f0328c82ec285",
+          "docs/v3/ROI_GPU_DISPATCH.md": "f322aa6cb950491c6046d976716a6ce2333818d6b0bde5ef95b1402f63343667"
+        },
+        "cache": "/home/huachenghao/codes/fast-diffusiondet/runs/v3/roi_dispatch_checks_division_fixed_20261015/triton_cache"
+      }
+    },
+    {
+      "run": "runs/v3/roi_dispatch_checks_scalar_fixed_20261015",
+      "stage": "kernel launch/compilation",
+      "failure": {
+        "error": "at 8:67:def _dispatch(F0, F1, F2, F3, Boxes, Levels, Out,\n              H0, W0, H1, W1, H2, W2, H3, W3,\n              CHANNELS: tl.constexpr, PH: tl.constexpr, PW: tl.constexpr,\n              S0: tl.constexpr, S1: tl.constexpr, S2: tl.constexpr, S3: tl.constexpr, BLOCK: tl.constexpr):\n    roi = tl.program_id(0)\n    level = tl.load(Levels + roi)\n    if level == 0:\n        _sample(F0, Boxes, Out, roi, H0, W0, CHANNELS, PH, PW, S0, BLOCK)\n                                                                   ^\nTypeError('0d block_type is forbidden')",
+        "passed": false
+      },
+      "failure_sha256": "81b49d014256aa44e6acaa3bb4453e292fe33515a317a014abf38aa0984c153c",
+      "manifest": {
+        "torch": "2.1.2+cu121",
+        "triton": "2.1.0",
+        "gpu": "1",
+        "source_sha256": {
+          "scripts/v3_roi_dispatch_checks.py": "2b8b3523a7fc194cb5399d1889a4a6666683aee40ccbf26f2f5f199e003a947c",
+          "diffusiondet/roi_gpu_dispatch.py": "bb86dbcbe79fbc365d37d1d43056d23034546f7d2ebb82180452a91308296ec1",
+          "diffusiondet/roi_gpu_dispatch_kernel.py": "d3e376d0946a41513fed56df91703a396f81ffc387606cfd423a4a17818c7178",
+          "diffusiondet/roi_pooler.py": "47c0fd86696ecfbb369bd55595d072ddfc77a6ce153e1cd5aa4f0328c82ec285",
+          "docs/v3/ROI_GPU_DISPATCH.md": "f322aa6cb950491c6046d976716a6ce2333818d6b0bde5ef95b1402f63343667"
+        },
+        "cache": "/home/huachenghao/codes/fast-diffusiondet/runs/v3/roi_dispatch_checks_scalar_fixed_20261015/triton_cache"
+      }
+    },
+    {
+      "run": "runs/v3/roi_dispatch_checks_model_20261015",
+      "stage": "model setup",
+      "failure": {
+        "error": "\u627e\u4e0d\u5230\u6570\u636e\u96c6\u6839\u76ee\u5f55\u3002\u5df2\u5c1d\u8bd5:\n  '/home/huachenghao/codes/dataset'\n\u8bf7\u8bbe\u7f6e\u73af\u5883\u53d8\u91cf FASTDD_DATASET \u6216\u547d\u4ee4\u884c\u4f20\u5165 DATASET_ROOT\u3002",
+        "passed": false
+      },
+      "failure_sha256": "42f2be5c417aa5878ef3f717a210437ef0010d6b637ee9e001b402a7a8785c1a",
+      "manifest": {
+        "torch": "2.1.2+cu121",
+        "triton": "2.1.0",
+        "gpu": "1",
+        "source_sha256": {
+          "scripts/v3_roi_dispatch_checks.py": "6d9b3b1fef227a374809160b2360837786ad6dd0d4142fdc2cc9b460ef32b89f",
+          "diffusiondet/roi_gpu_dispatch.py": "bb86dbcbe79fbc365d37d1d43056d23034546f7d2ebb82180452a91308296ec1",
+          "diffusiondet/roi_gpu_dispatch_kernel.py": "ccc7ca7412591de181e83738d13f5e975ea2c0eb17808781a68ced7a24c78bf9",
+          "diffusiondet/roi_pooler.py": "47c0fd86696ecfbb369bd55595d072ddfc77a6ce153e1cd5aa4f0328c82ec285",
+          "docs/v3/ROI_GPU_DISPATCH.md": "f322aa6cb950491c6046d976716a6ce2333818d6b0bde5ef95b1402f63343667"
+        },
+        "cache": "/home/huachenghao/codes/fast-diffusiondet/runs/v3/roi_dispatch_checks_model_20261015/triton_cache"
+      }
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "features": [
+    {
+      "case": "boundaries_ragged",
+      "shape": [
+        14,
+        8,
+        7,
+        7
+      ],
+      "max_abs_error": 2.9802322387695312e-08,
+      "relative_l2": 1.6382223577693367e-08,
+      "first_call_ms": 1594.8008364066482,
+      "finite": true,
+      "rtol": 1e-05,
+      "atol": 2e-05
+    },
+    {
+      "case": "empty",
+      "shape": [
+        0,
+        8,
+        7,
+        7
+      ],
+      "max_abs_error": 0.0,
+      "relative_l2": 0.0,
+      "first_call_ms": 0.29293447732925415,
+      "finite": true,
+      "rtol": 1e-05,
+      "atol": 2e-05
+    },
+    {
+      "case": "large_spatial",
+      "shape": [
+        14,
+        32,
+        7,
+        7
+      ],
+      "max_abs_error": 5.960464477539063e-08,
+      "relative_l2": 1.8147336078300214e-08,
+      "first_call_ms": 1476.6415609046817,
+      "finite": true,
+      "rtol": 1e-05,
+      "atol": 2e-05
+    },
+    {
+      "case": "real_channels_300",
+      "shape": [
+        300,
+        256,
+        7,
+        7
+      ],
+      "max_abs_error": 1.1920928955078125e-07,
+      "relative_l2": 3.0339172951698856e-08,
+      "first_call_ms": 1498.042424209416,
+      "finite": true,
+      "rtol": 1e-05,
+      "atol": 2e-05
+    }
+  ],
+  "gradient_fallback_max_abs": 0.0,
+  "native_fallbacks": [
+    "noncontiguous",
+    "autocast"
+  ],
+  "passed": true
+}

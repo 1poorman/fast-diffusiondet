@@ -1,0 +1,44 @@
+{
+  "audit": {
+    "evaluations": 18,
+    "cross_arm_bit_exact_images": 0,
+    "interleaved_bit_exact_calls": 3960,
+    "profiler_bit_exact_calls": 60,
+    "frozen_checkpoints": 3,
+    "baseline_max_abs_AP_difference": 0.0,
+    "hashed_artifacts": 109,
+    "hashed_sources": 24,
+    "installed_poolers_unchanged": true,
+    "sequential_timed_calls": 3600,
+    "interleaved_timed_calls": 3600
+  },
+  "checks": {
+    "mean_AP": true,
+    "mean_AP75": true,
+    "each_checkpoint_AP": true,
+    "worst_class_AP": true,
+    "mean_p50": true,
+    "each_checkpoint_p50": true,
+    "mean_p95": true,
+    "synchronization_mechanism": true
+  },
+  "passed_development_screen": true,
+  "report_script_sha256": "aa709dde614d407e8271ebc6bed1a01f58527b73a8ff53a016e730fdbdee0fbe",
+  "evidence_sha256": {
+    "metrics.csv": "6d08561ec9ddf964844e717ae1f297744927df05b81131cdc979c564a137a27f",
+    "interleaved.csv": "73e764a4e7fab6012f5e4c9ee98f29e23b9775e7ad12adbc744eb235e8730054",
+    "manifest.json": "27c86cdd4c6ac38b9957048fe422c345a64cd58f87554f38e002786b3a918e34",
+    "config.yaml": "d704e66781fa51ccbccf7eda7649ab038b9b4356ac4c352d167c2ba20dc7b83c",
+    "numerical_audit.json": "97cc7c6b9d7605c5590304da2609e400a234794a40d6ba2a27c1b248cff466c3",
+    "parity.json": "107dce21e2bbe93cbaea835edfc9817475779b105e7e3e459ab919a417624fa6",
+    "state_audit.json": "8a3f2d850a3d741809d258d6bb924a481983ea533666e14d3595a2c2c204157b",
+    "profiles.json": "cb1f30c3c0f096c02553f40877d9c607a0f721922752b4a43aeb688d5a99a9fc",
+    "artifacts.json": "2aea0e6be78fc18e1e1861aaf5dad51e4c689fa38e19fe057cd0508d5e0e3ae6",
+    "COMPLETE.json": "73c9d3e62ec0d679884e32a58ae38e0dcd0a95ac75bce022be7a65e250484997",
+    "prerequisite.json": "236c5b3e690c91fa7c8082980f14f94dd1ad99e550148cd0d923221afbe86ef3",
+    "prerequisite_manifest.json": "4f9ee7bfd7457711a40c0e720613bc87982b5697d56c00656436e68b92f4de92",
+    "jit_audit.json": "e6d693484c7407baabeb1a793bb71290cd775ebbe4fc04808db01268d4028b7b"
+  },
+  "aggregation": "Mean inference seeds within checkpoint, equal checkpoint weights; speed gate averages checkpoint ratios",
+  "scope": "SDD development execution screen; frozen FP32 H4; profiler runs after all timing, never used for speed gate"
+}

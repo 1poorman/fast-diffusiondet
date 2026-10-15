@@ -1,0 +1,13 @@
+{
+  "torch": "2.1.2+cu121",
+  "triton": "2.1.0",
+  "gpu": "1",
+  "source_sha256": {
+    "scripts/v3_roi_dispatch_checks.py": "fd77ec77379b41d6da8908277092236c6206a843c0abfad3516c33ab14f36e6b",
+    "diffusiondet/roi_gpu_dispatch.py": "11c3c93d03a1b202ee564a6c4fb44e306c22e1692e74b1fb9457bb4d762d5cb3",
+    "diffusiondet/roi_gpu_dispatch_kernel.py": "ccc7ca7412591de181e83738d13f5e975ea2c0eb17808781a68ced7a24c78bf9",
+    "diffusiondet/roi_pooler.py": "47c0fd86696ecfbb369bd55595d072ddfc77a6ce153e1cd5aa4f0328c82ec285",
+    "docs/v3/ROI_GPU_DISPATCH.md": "f322aa6cb950491c6046d976716a6ce2333818d6b0bde5ef95b1402f63343667"
+  },
+  "cache": "/home/huachenghao/codes/fast-diffusiondet/runs/v3/roi_dispatch_prerequisite_20261015/triton_cache"
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "train_seed": 10,
+    "initial_sha256": "b6c790531c1e81130e42b48af30ce41bbe36ed43815671271ffbef31995439fc",
+    "final_sha256": "b6c790531c1e81130e42b48af30ce41bbe36ed43815671271ffbef31995439fc",
+    "state_unchanged": true
+  },
+  {
+    "train_seed": 11,
+    "initial_sha256": "dfd8d18a35090abbaa1943942ff7fe9c034cba68fbb186061a27bc0bdbff5bda",
+    "final_sha256": "dfd8d18a35090abbaa1943942ff7fe9c034cba68fbb186061a27bc0bdbff5bda",
+    "state_unchanged": true
+  },
+  {
+    "train_seed": 12,
+    "initial_sha256": "f061972b323f7c5dd2ad22ef36478556f5ac0de8ce477641633ef068eee7179f",
+    "final_sha256": "f061972b323f7c5dd2ad22ef36478556f5ac0de8ce477641633ef068eee7179f",
+    "state_unchanged": true
+  }
+]
