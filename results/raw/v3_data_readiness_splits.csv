@@ -1,0 +1,8 @@
+split,images,annotations,effective_annotations,declared_classes,observed_classes,original_missing,changed_paths,missing,unreadable,dimension_mismatches,structural_errors
+pls_train,7916,7915,7915,16,15,0,0,0,0,0,
+pls_val,2024,2024,2024,16,15,0,0,0,0,0,
+pls_test,111,111,111,16,16,111,111,0,0,0,
+sdd_train,1750,3932,3932,7,7,0,0,0,0,0,
+sdd_val,750,1775,1775,7,7,0,0,0,0,0,
+wheat_train,695,1827,1827,12,12,0,0,0,0,0,
+wheat_val,123,294,294,12,12,0,0,0,0,0,

@@ -1,0 +1,87 @@
+split,category_id,category,annotations,images
+pls_train,1,Apple_black_rot,488,488
+pls_train,2,apple_scab,497,497
+pls_train,3,Apple_cedar_rust,213,213
+pls_train,4,Corn_cercospora_leaf_spot,409,409
+pls_train,5,Corn_common_rust,421,421
+pls_train,6,Grape_black_rot,918,918
+pls_train,7,Grape_leaf_blight,409,409
+pls_train,8,orange_huanglongbing,405,405
+pls_train,9,Pepper_bell_bacterial_spot,795,795
+pls_train,10,Potato_early_blight,790,790
+pls_train,11,Potato_late_blight,785,785
+pls_train,12,Cherry_powdery_mildew,0,0
+pls_train,13,Squash_powdery_mildew,368,368
+pls_train,14,Tomato_bacteral_spot,384,384
+pls_train,15,Tomato_leaf_mold,745,745
+pls_train,16,Tomato_mosaic_virus,288,288
+pls_val,1,Apple_black_rot,127,127
+pls_val,2,apple_scab,129,129
+pls_val,3,Apple_cedar_rust,59,59
+pls_val,4,Corn_cercospora_leaf_spot,100,100
+pls_val,5,Corn_common_rust,76,76
+pls_val,6,Grape_black_rot,248,248
+pls_val,7,Grape_leaf_blight,86,86
+pls_val,8,orange_huanglongbing,92,92
+pls_val,9,Pepper_bell_bacterial_spot,189,189
+pls_val,10,Potato_early_blight,201,201
+pls_val,11,Potato_late_blight,209,209
+pls_val,12,Cherry_powdery_mildew,0,0
+pls_val,13,Squash_powdery_mildew,125,125
+pls_val,14,Tomato_bacteral_spot,112,112
+pls_val,15,Tomato_leaf_mold,191,191
+pls_val,16,Tomato_mosaic_virus,80,80
+pls_test,1,Apple_black_rot,6,6
+pls_test,2,apple_scab,4,4
+pls_test,3,Apple_cedar_rust,3,3
+pls_test,4,Corn_cercospora_leaf_spot,4,4
+pls_test,5,Corn_common_rust,3,3
+pls_test,6,Grape_black_rot,14,14
+pls_test,7,Grape_leaf_blight,5,5
+pls_test,8,orange_huanglongbing,3,3
+pls_test,9,Pepper_bell_bacterial_spot,13,13
+pls_test,10,Potato_early_blight,8,8
+pls_test,11,Potato_late_blight,6,6
+pls_test,12,Cherry_powdery_mildew,10,10
+pls_test,13,Squash_powdery_mildew,7,7
+pls_test,14,Tomato_bacteral_spot,4,4
+pls_test,15,Tomato_leaf_mold,16,16
+pls_test,16,Tomato_mosaic_virus,5,5
+sdd_train,1,Angular Leafspot,395,316
+sdd_train,2,Anthracnose Fruit Rot,117,71
+sdd_train,3,Blossom Blight,221,154
+sdd_train,4,Gray Mold,420,332
+sdd_train,5,Leaf Spot,1453,423
+sdd_train,6,Powdery Mildew Fruit,202,98
+sdd_train,7,Powdery Mildew Leaf,1124,363
+sdd_val,1,Angular Leafspot,144,119
+sdd_val,2,Anthracnose Fruit Rot,47,29
+sdd_val,3,Blossom Blight,79,55
+sdd_val,4,Gray Mold,178,144
+sdd_val,5,Leaf Spot,647,192
+sdd_val,6,Powdery Mildew Fruit,96,43
+sdd_val,7,Powdery Mildew Leaf,584,170
+wheat_train,1,CrownAndRootRot,180,67
+wheat_train,2,HealthyWheat,232,58
+wheat_train,3,LeafRust,98,77
+wheat_train,4,PowderyMildew,270,68
+wheat_train,5,WheatLooseSmut,145,65
+wheat_train,6,WheatAphids,135,60
+wheat_train,7,WheatCystNematode,81,33
+wheat_train,8,WheatRedSpider,157,61
+wheat_train,9,WheatScab,261,68
+wheat_train,10,WheatSharpEyespot,81,50
+wheat_train,11,WheatStalkRot,103,52
+wheat_train,12,WheatTake-all,84,39
+wheat_val,1,CrownAndRootRot,30,12
+wheat_val,2,HealthyWheat,36,10
+wheat_val,3,LeafRust,18,14
+wheat_val,4,PowderyMildew,38,12
+wheat_val,5,WheatLooseSmut,24,11
+wheat_val,6,WheatAphids,25,10
+wheat_val,7,WheatCystNematode,14,6
+wheat_val,8,WheatRedSpider,24,11
+wheat_val,9,WheatScab,39,12
+wheat_val,10,WheatSharpEyespot,14,9
+wheat_val,11,WheatStalkRot,19,9
+wheat_val,12,WheatTake-all,13,7

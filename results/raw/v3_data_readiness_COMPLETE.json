@@ -1,0 +1,121 @@
+{
+  "completed": true,
+  "images": 13369,
+  "run_dir": "runs/v3/data_readiness_20261015",
+  "dataset_root": "/home/huachenghao/codes/fast-diffusiondet/datasets",
+  "python": "3.10.21 (main, Aug 27 2026, 14:42:07) [GCC 14.3.0]",
+  "pillow": "12.3.0",
+  "source_sha256": {
+    "scripts/v3_data_readiness.py": "e32fe254d09e84093457404bc5aa9a382f0e406b14b954bfcd6b3f044c695871",
+    "diffusiondet/data_register.py": "578081e26754c9c1d857049b6bc3d34d7af6b4161def269f11d03c1d50ca9943",
+    "docs/v3/DATA_READINESS.md": "caf48ddb6cdbfabf733c7951eecc96be5fa3f242337cdcb279b8ed8534cd0e96",
+    "scripts/v3_summarize_distill.py": "cbed0b2e09645a0e78c2255377a4b6e3466df980a185ba3035788f975ed2e91e"
+  },
+  "annotation_sha256": {
+    "pls_train": "25ff08321dfe3ecbcc4a7624146f71a0329fe3036280e492ad6b81b6ccbea9c3",
+    "pls_val": "39bc84912d692981c2d570cc2162eef1373fd78d860a2669446c35983abdb101",
+    "pls_test": "5235c54aae92fe6952552c768e94884febde7e25b9c92eabf151eb18c728069e",
+    "sdd_train": "2984984785abc9a927172fe52c00c159fe24252008fb39da03acba409b4f9053",
+    "sdd_val": "c8fb0b104879b25c8841532d0905b0ab4b84ac22448efbfb93b5fe70c44f8700",
+    "wheat_train": "230d4bfc7cd57195784011b38a75216d893c6ec3924d9df3e18252698be42b5d",
+    "wheat_val": "ae6bdbb047d8af83d8ff58b3cb805dbcff0e39d553e735870d9364c16a940e45"
+  },
+  "artifacts_sha256": {
+    "pls_train.json": "64ccd8b4e0163761005e85b4146d48591042d2a1d61cc92707d4867f06f4c97d",
+    "pls_val.json": "6aab2b208f4aefbb9e59b71444d163cac499a95cd154c45b9f6d20cf08d749a4",
+    "pls_test.json": "4cf6aad2d0be09b5de96a496f4bf09bbf74418b49b4be65b0c0688b309f142e5",
+    "sdd_train.json": "d7abea90d1ebb8e3b8f927a9a7d48d592b289198e8f66570334c143eac02d1c3",
+    "sdd_val.json": "8ce4e1124cc3d9c3d8002c9a8e257380a0a8c433039da1d5c840b27f646e5d78",
+    "wheat_train.json": "0f82c0a3f4318514366b6e688c0fd0fc6780e5487c28f4c4e82f63fbf7402422",
+    "wheat_val.json": "98d6a0ebe16f0569210df43b50744c1e2a53224b41a357bb303777ac498c0094"
+  },
+  "readiness": [
+    {
+      "domain": "pls",
+      "split": "pls_val",
+      "checks": {
+        "images_readable": true,
+        "annotation_structure_valid": true,
+        "category_mapping_matches": true,
+        "no_exact_cross_split_overlap": true,
+        "all_evaluation_classes_seen_in_training": true,
+        "checkpoint_available": false
+      },
+      "closed_set_execution_ready": false,
+      "unseen_classes": [],
+      "prior_test_usage": "development set; used historically",
+      "independent_confirmation_completed": false
+    },
+    {
+      "domain": "pls",
+      "split": "pls_test",
+      "checks": {
+        "images_readable": true,
+        "annotation_structure_valid": true,
+        "category_mapping_matches": true,
+        "no_exact_cross_split_overlap": true,
+        "all_evaluation_classes_seen_in_training": false,
+        "checkpoint_available": false
+      },
+      "closed_set_execution_ready": false,
+      "unseen_classes": [
+        {
+          "split": "pls_test",
+          "category_id": 12,
+          "category": "Cherry_powdery_mildew",
+          "annotations": 10,
+          "images": 10
+        }
+      ],
+      "prior_test_usage": "unknown",
+      "independent_confirmation_completed": false
+    },
+    {
+      "domain": "sdd",
+      "split": "sdd_val",
+      "checks": {
+        "images_readable": true,
+        "annotation_structure_valid": true,
+        "category_mapping_matches": true,
+        "no_exact_cross_split_overlap": false,
+        "all_evaluation_classes_seen_in_training": true,
+        "checkpoint_available": true
+      },
+      "closed_set_execution_ready": false,
+      "unseen_classes": [],
+      "prior_test_usage": "development set; used historically",
+      "independent_confirmation_completed": false
+    },
+    {
+      "domain": "wheat",
+      "split": "wheat_val",
+      "checks": {
+        "images_readable": true,
+        "annotation_structure_valid": true,
+        "category_mapping_matches": true,
+        "no_exact_cross_split_overlap": true,
+        "all_evaluation_classes_seen_in_training": true,
+        "checkpoint_available": false
+      },
+      "closed_set_execution_ready": false,
+      "unseen_classes": [],
+      "prior_test_usage": "development set; used historically",
+      "independent_confirmation_completed": false
+    }
+  ],
+  "checkpoints": {
+    "pls": {
+      "path": "output/lab/pls.res50.bs8/model_final.pth",
+      "available": false
+    },
+    "wheat": {
+      "path": "output/lab/wheat.res50.bs8/model_final.pth",
+      "available": false
+    }
+  },
+  "limitations": [
+    "Exact bytes and decoded RGB only; near-duplicate similarity and acquisition groups not established.",
+    "Test usage history cannot be established from absent local logs.",
+    "No model AP, speed or generalization claim from this data audit."
+  ]
+}

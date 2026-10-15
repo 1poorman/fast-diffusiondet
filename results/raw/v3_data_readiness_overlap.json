@@ -1,0 +1,364 @@
+[
+  {
+    "left": "pls_train",
+    "right": "pls_val",
+    "hash_type": "file_sha256",
+    "duplicate_groups": 0,
+    "left_images": 0,
+    "right_images": 0,
+    "groups": []
+  },
+  {
+    "left": "pls_train",
+    "right": "pls_val",
+    "hash_type": "rgb_sha256",
+    "duplicate_groups": 0,
+    "left_images": 0,
+    "right_images": 0,
+    "groups": []
+  },
+  {
+    "left": "pls_train",
+    "right": "pls_test",
+    "hash_type": "file_sha256",
+    "duplicate_groups": 0,
+    "left_images": 0,
+    "right_images": 0,
+    "groups": []
+  },
+  {
+    "left": "pls_train",
+    "right": "pls_test",
+    "hash_type": "rgb_sha256",
+    "duplicate_groups": 0,
+    "left_images": 0,
+    "right_images": 0,
+    "groups": []
+  },
+  {
+    "left": "pls_val",
+    "right": "pls_test",
+    "hash_type": "file_sha256",
+    "duplicate_groups": 0,
+    "left_images": 0,
+    "right_images": 0,
+    "groups": []
+  },
+  {
+    "left": "pls_val",
+    "right": "pls_test",
+    "hash_type": "rgb_sha256",
+    "duplicate_groups": 0,
+    "left_images": 0,
+    "right_images": 0,
+    "groups": []
+  },
+  {
+    "left": "sdd_train",
+    "right": "sdd_val",
+    "hash_type": "file_sha256",
+    "duplicate_groups": 15,
+    "left_images": 15,
+    "right_images": 15,
+    "groups": [
+      {
+        "sha256": "13b74fb3c896cb0b6b6244fb6da59d8207983cdeec834facff30308dce65f853",
+        "left_image_ids": [
+          738
+        ],
+        "right_image_ids": [
+          493
+        ]
+      },
+      {
+        "sha256": "2755354dbb0c93ab4770b2e33368d9acb914cd13c8d14dae5ea92349d11c134e",
+        "left_image_ids": [
+          1668
+        ],
+        "right_image_ids": [
+          425
+        ]
+      },
+      {
+        "sha256": "2ef84a51e2afeb7d588085d644479183c598c6f176f22ed8096ed17ccb9cab08",
+        "left_image_ids": [
+          1212
+        ],
+        "right_image_ids": [
+          350
+        ]
+      },
+      {
+        "sha256": "4b101349bdd1040f968d731ff633fc660a513ea5609fc916062de0f764cb719c",
+        "left_image_ids": [
+          1422
+        ],
+        "right_image_ids": [
+          632
+        ]
+      },
+      {
+        "sha256": "4d87b245621a6c1e7203534598e0e2d06032962e073f1debdc3b551c84435813",
+        "left_image_ids": [
+          1517
+        ],
+        "right_image_ids": [
+          610
+        ]
+      },
+      {
+        "sha256": "4e9d90ac033a419aa7593f983b4a91d6a105fa76105b568898fde6ce43ea4a05",
+        "left_image_ids": [
+          1614
+        ],
+        "right_image_ids": [
+          176
+        ]
+      },
+      {
+        "sha256": "541bbf1542bfc474cc431c4b23025ce77f4f463aa93b9ffa5c0bc050bd4f135a",
+        "left_image_ids": [
+          65
+        ],
+        "right_image_ids": [
+          679
+        ]
+      },
+      {
+        "sha256": "8fa946f6e96a489713630ba146482e82cb347a56710d03413c3412f83404f22e",
+        "left_image_ids": [
+          86
+        ],
+        "right_image_ids": [
+          394
+        ]
+      },
+      {
+        "sha256": "9f346966b4619dd257231bdb7ff3a73404a204724eb1acd73a09d0710ce0c0dd",
+        "left_image_ids": [
+          334
+        ],
+        "right_image_ids": [
+          305
+        ]
+      },
+      {
+        "sha256": "a66a20e6d9416047d13270b939883c53fba29f3107003bf1be155262ee06e6db",
+        "left_image_ids": [
+          319
+        ],
+        "right_image_ids": [
+          404
+        ]
+      },
+      {
+        "sha256": "a9d329d327c1900841e99663c749a4d2b9b9a2e2d8f766ade4725a08484e9025",
+        "left_image_ids": [
+          835
+        ],
+        "right_image_ids": [
+          594
+        ]
+      },
+      {
+        "sha256": "cecf317430837f8b0402a4636c576f9e10c5eb18aff3040c5b6cd68864d8d22f",
+        "left_image_ids": [
+          1151
+        ],
+        "right_image_ids": [
+          444
+        ]
+      },
+      {
+        "sha256": "df7b087a17a64873472f7e57d3f61a428cfe447a2556862abed99e8a7e99fc4a",
+        "left_image_ids": [
+          1210
+        ],
+        "right_image_ids": [
+          564
+        ]
+      },
+      {
+        "sha256": "ea786dcc4122e7ba153f2f4ec39f134f8d19ef9ffacc93f1a2d3a52df451b2dd",
+        "left_image_ids": [
+          1223
+        ],
+        "right_image_ids": [
+          430
+        ]
+      },
+      {
+        "sha256": "f720ca1850516128c9dcc4deeb5bebd7e658434595e6457be89fe01ca062091d",
+        "left_image_ids": [
+          675
+        ],
+        "right_image_ids": [
+          245
+        ]
+      }
+    ]
+  },
+  {
+    "left": "sdd_train",
+    "right": "sdd_val",
+    "hash_type": "rgb_sha256",
+    "duplicate_groups": 15,
+    "left_images": 15,
+    "right_images": 15,
+    "groups": [
+      {
+        "sha256": "0d8f984967e3b55a66998d23d0b51859ca9b093d2c95559aa0befe958fc2d0c4",
+        "left_image_ids": [
+          1151
+        ],
+        "right_image_ids": [
+          444
+        ]
+      },
+      {
+        "sha256": "162f95ab3c662975f1be91003aa2a9bfd0bbe68c9c557ea039305ca9913d0067",
+        "left_image_ids": [
+          738
+        ],
+        "right_image_ids": [
+          493
+        ]
+      },
+      {
+        "sha256": "4c8597dce9eed0d7db8edc48e1a346ff8c4968ab654a2d3a34baf69a51fd4b86",
+        "left_image_ids": [
+          86
+        ],
+        "right_image_ids": [
+          394
+        ]
+      },
+      {
+        "sha256": "56f3eb32349fe78dd441c68c9cf5a186bc59c49ca2ffbe52416c5d6474fbe622",
+        "left_image_ids": [
+          675
+        ],
+        "right_image_ids": [
+          245
+        ]
+      },
+      {
+        "sha256": "76e2d9f67eedb16943bbb3d813c040ce2eed797f63e32049cf43e3221185585c",
+        "left_image_ids": [
+          319
+        ],
+        "right_image_ids": [
+          404
+        ]
+      },
+      {
+        "sha256": "8a8c7e62ae07db8a5301ca226e3fa98e2000266b7062d8ccfcd95b7f14a5b9db",
+        "left_image_ids": [
+          65
+        ],
+        "right_image_ids": [
+          679
+        ]
+      },
+      {
+        "sha256": "b3870fc6bb23ce2b188663c36fcdb9915724d57d2d31c43c8e6c832a77b19572",
+        "left_image_ids": [
+          835
+        ],
+        "right_image_ids": [
+          594
+        ]
+      },
+      {
+        "sha256": "ba7decabaeeee6eb0c83c878491db886a6911ebdf4cc89ff47413e206c129ea6",
+        "left_image_ids": [
+          1668
+        ],
+        "right_image_ids": [
+          425
+        ]
+      },
+      {
+        "sha256": "bcf5c2d69c9351e014b91296d55e731c73b4fac4bc090c3013932417c6bfb81d",
+        "left_image_ids": [
+          1210
+        ],
+        "right_image_ids": [
+          564
+        ]
+      },
+      {
+        "sha256": "da902ed04cc40dc481efdd768eb5dc916ec470018aa7f4629f1b96d3435bde2c",
+        "left_image_ids": [
+          1212
+        ],
+        "right_image_ids": [
+          350
+        ]
+      },
+      {
+        "sha256": "e318987f85c29287227ccb04418c4e51291c8a0175fa518f48425237da184682",
+        "left_image_ids": [
+          1223
+        ],
+        "right_image_ids": [
+          430
+        ]
+      },
+      {
+        "sha256": "eb0df3dd90efe3622494afa5761c9494deb6d0122daf14b03822bd5da643994f",
+        "left_image_ids": [
+          1614
+        ],
+        "right_image_ids": [
+          176
+        ]
+      },
+      {
+        "sha256": "f3b8d4bc33ba5e21f29fc3d4a9c7ac830cdefeed9e826ef5ddb14e7c95497c9f",
+        "left_image_ids": [
+          1422
+        ],
+        "right_image_ids": [
+          632
+        ]
+      },
+      {
+        "sha256": "f54a4ca77037d48c3c2dc9c59ae2712693fbd7b609d7f1375c5bf29e9403baf2",
+        "left_image_ids": [
+          334
+        ],
+        "right_image_ids": [
+          305
+        ]
+      },
+      {
+        "sha256": "fe11c9c83a1158eb94d7d22368ad56f736325b515dff3caf9e93d58562a0932e",
+        "left_image_ids": [
+          1517
+        ],
+        "right_image_ids": [
+          610
+        ]
+      }
+    ]
+  },
+  {
+    "left": "wheat_train",
+    "right": "wheat_val",
+    "hash_type": "file_sha256",
+    "duplicate_groups": 0,
+    "left_images": 0,
+    "right_images": 0,
+    "groups": []
+  },
+  {
+    "left": "wheat_train",
+    "right": "wheat_val",
+    "hash_type": "rgb_sha256",
+    "duplicate_groups": 0,
+    "left_images": 0,
+    "right_images": 0,
+    "groups": []
+  }
+]
