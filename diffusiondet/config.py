@@ -40,6 +40,8 @@ def add_diffusiondet_config(cfg):
     cfg.MODEL.DiffusionDet.EVAL_BACKBONE_PRECISION = "fp32"
     # Avoid CUDA repeat-count synchronization when forming ROI batch indices.
     cfg.MODEL.DiffusionDet.ROI_POOLER_KNOWN_COUNTS = False
+    # Inference-only four-level CUDA FP32 ROIAlignV2 dispatch; native autograd fallback.
+    cfg.MODEL.DiffusionDet.EVAL_ROI_GPU_DISPATCH = False
     # V3: used only when an explicit frozen teacher is passed during training.
     cfg.MODEL.DiffusionDet.KD_TEMPERATURE = 2.0
     cfg.MODEL.DiffusionDet.KD_MIN_IOU = 0.5

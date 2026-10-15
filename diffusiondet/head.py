@@ -25,6 +25,7 @@ from detectron2.modeling.poolers import ROIPooler
 from detectron2.structures import Boxes
 
 from .roi_pooler import KnownCountROIPooler
+from .roi_gpu_dispatch import GPUDispatchROIPooler
 
 
 _DEFAULT_SCALE_CLAMP = math.log(100000.0 / 16)
@@ -141,6 +142,8 @@ class DynamicHead(nn.Module):
         assert len(set(in_channels)) == 1, in_channels
 
         pooler_class = KnownCountROIPooler if cfg.MODEL.DiffusionDet.ROI_POOLER_KNOWN_COUNTS else ROIPooler
+        if cfg.MODEL.DiffusionDet.EVAL_ROI_GPU_DISPATCH:
+            pooler_class = GPUDispatchROIPooler
         box_pooler = pooler_class(
             output_size=pooler_resolution,
             scales=pooler_scales,
