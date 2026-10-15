@@ -1,6 +1,6 @@
 # V3 验证记录
 
-更新：2026-10-15。G1/G2/T1/P1/Q1/L1/B1均已完成；各节保留对应协议、结果和复现入口。
+更新：2026-10-15。G1/G2/T1/P1/Q1/L1/B1/R1均已完成；各节保留对应协议、结果和复现入口。
 
 ## G0：实现正确性
 
@@ -660,6 +660,101 @@ FP16的峰值allocated显存略高，不能将该模式描述为显存优化；�
 # 可选推理配置：configs/lab/v3/sdd.res50.student4.backbone_fp16.yaml
 # 默认仍是EVAL_BACKBONE_PRECISION=fp32；fp16仅适用于CUDA推理。
 OMP_NUM_THREADS=4 /home/huachenghao/.conda/envs/fastdiff/bin/python -m pytest tests -q
+```
+
+## R1：ROI索引使用已知框数量（2026-10-15完成）
+
+**预测逐bit一致、ROI同步减少，但交错p50仅降低3.26%，未达到预设5%门槛。**
+保持原pooler默认；本地known-count pooler作为可选执行模式保留，没有修改安装的Detectron2。
+
+### 协议与证据
+
+协议在结果前固定于[ROI_KNOWN_COUNTS.md](ROI_KNOWN_COUNTS.md)。原路径将CPU已知的各图
+框数量复制到GPU，用repeat_interleave构造batch索引。本轮使用Python shape数量直接创建
+各图索引列，保留FPN层分配、逐层nonzero、ROIAlign、输出回填以及输入有效性检查。
+不缓存特征，不改变框坐标、P300、H4或输入尺寸；不叠加B1骨干FP16。
+
+使用T1三份600步uniform H4末步权重，原focal、no_weights、NFE1、全模型FP32，
+训练seed10/11/12×推理seed0/1/2×两臂，共18次完整750图验证。仅GPU1 / RTX 3090。
+完整验证内保留20图预热+200图同步模型调用计时；另外9组逐图AB/BA交错计时用于速度门槛。
+全部计时完成后才启动三份权重×两臂×10图profiler，不使用profiler耗时评判速度。
+先在checkpoint内平均推理seed，再等权平均checkpoint；速度降幅平均checkpoint比值。
+
+- 正式目录：`runs/v3/roi_known_counts_20261015/`；32图冒烟仅验证实现和管线。
+- [18次完整评测](../../results/raw/v3_roi_known_counts.csv)、
+  [交错计时](../../results/raw/v3_roi_known_counts_interleaved.csv)、
+  [checkpoint配对](../../results/raw/v3_roi_known_counts_paired.csv)、
+  [汇总](../../results/raw/v3_roi_known_counts_summary.csv)、
+  [逐类AP](../../results/raw/v3_roi_known_counts_per_class.csv)。
+- [运行manifest](../../results/raw/v3_roi_known_counts_manifest.json)、
+  [输出对拍](../../results/raw/v3_roi_known_counts_parity.json)、
+  [CUDA梯度审计](../../results/raw/v3_roi_known_counts_gradient_audit.json)、
+  [profiler计数](../../results/raw/v3_roi_known_counts_profiles.json)、
+  [Gate及证据审计](../../results/raw/v3_roi_known_counts_gate.json)。
+  大型预测、逐图时间与完整轨迹保留在run目录，
+  [产物hash](../../results/raw/v3_roi_known_counts_artifacts.json)可核验。
+
+### 结果
+
+| pooler | AP | AP75 | 交错p50 ms | 交错p95 ms | ROI同步/图 | 峰值allocated GiB |
+|---|---:|---:|---:|---:|---:|---:|
+| 原实现 | 67.777 | 74.103 | 27.494 | 28.850 | 28 | 0.576 |
+| 已知数量索引 | 67.777 | 74.103 | 26.598 | 27.883 | 16 | 0.576 |
+
+| checkpoint训练seed | 原p50 ms | 新p50 ms | p50降低 | p95变化 |
+|---|---:|---:|---:|---:|
+| 10 | 27.552 | 26.662 | 3.23% | −2.99% |
+| 11 | 27.488 | 26.578 | 3.31% | −3.47% |
+| 12 | 27.442 | 26.556 | 3.23% | −3.60% |
+| 均值 | 27.494 | 26.598 | 3.26% | −3.35% |
+
+所有总体/逐类AP与T1一致，最大偏差0。完整验证内的顺序计时原/新p50为27.638/26.813ms，
+p95为28.822/27.837ms，与交错结果方向一致；不合并成额外独立重复。
+ROI同步次数减少42.86%，但模型调用p50只节省约0.896ms，不能按同步数量比例推断整体提速。
+
+![R1 latency and ROI synchronization counts](../../results/figures/v3_roi_known_counts.png)
+
+### 数值与机制审计
+
+13项新pooler测试覆盖不等长batch、空图/空batch、单/多尺度、FPN边界、越界框、输入校验、
+格式张量梯度和完整head的输出/参数梯度及checkpoint兼容；另有19项结果审计测试。
+完整测试集173 passed。CUDA审计的池化输出精确一致；正式梯度最大绝对差0，
+冒烟为7.45e-9，均在预设rtol/atol=2e-5范围内，没有因atomic累加而放宽门槛。
+
+6,750对全验证图像的框、分数、类别digest完全一致，保存的COCO预测JSON也逐字节相同。
+3,960次交错调用（含预热）与60次profiler调用均复现未插桩预测，全部预测有限。
+三份模型的起止state digest一致，并与源checkpoint对应；旧权重只读。
+21份源码快照、三份权重、原/过滤标注、T1参考与105份预测/计时/轨迹产物hash全部通过。
+安装的Detectron2 poolers源码与快照hash一致。
+
+六组profiler各观察到40次ROI调用：每10图原路径280次stream同步，新路径160次；
+ROI域repeat_interleave算子记录由80条降至0条。减少的是索引构造所需的同步，
+原逐层nonzero和ROIAlign仍在执行。profiler只证明调用/同步机制变化，不提供无插桩速度结论。
+
+### Gate与后续
+
+| 预设条件 | 实测 | 判定 |
+|---|---:|---|
+| 全验证预测精确一致、AP复现、有限性/状态/梯度/来源审计通过 | 全部通过 | 通过 |
+| ROI repeat_interleave消失且同步减少 | 28→16次/图 | 通过 |
+| 交错p50平均降低≥5% | 3.26% | **未通过** |
+| 每份checkpoint交错p50降低≥3% | 最低3.23% | 通过 |
+| 平均p95增幅≤5% | −3.35% | 通过 |
+
+不下调5%门槛，不叠加FP16后改写本轮判定。默认保持原pooler、FP32、uniform、P300及原focal。
+下一执行方向是保留下来的逐层nonzero动态长度路径；若采用固定容量或融合算子，必须单独
+验证额外计算/内存开销、数值和梯度，再测量端到端收益。本轮没有实现该后续方案。
+这些结果仅来自反复使用的SDD开发集和当前GPU，不能推广为其他硬件上的稳定加速。
+
+### 复现入口
+
+```bash
+/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_roi_known_counts.py \
+  --gpu 1 --out-dir runs/v3/roi_known_counts_new_run
+/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_summarize_roi.py \
+  runs/v3/roi_known_counts_new_run --prefix v3_roi_known_counts_new_run
+# 可选配置：configs/lab/v3/sdd.res50.student4.roi_known_counts.yaml
+# 默认ROI_POOLER_KNOWN_COUNTS=False；旧权重严格兼容。
 ```
 六份权重、源码/配置/标注/外部pooler快照、逐图区间、分位数、执行H/P及9条轨迹哈希均通过审计。
 5400次event与90次profiler输出对拍逐字节一致；13项新审计测试通过，
