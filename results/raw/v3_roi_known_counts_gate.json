@@ -1,0 +1,37 @@
+{
+  "audit": {
+    "evaluations": 18,
+    "full_bit_exact_image_pairs": 6750,
+    "interleaved_bit_exact_calls": 3960,
+    "profiler_bit_exact_calls": 60,
+    "frozen_checkpoints": 3,
+    "baseline_max_abs_AP_difference": 0.0,
+    "hashed_artifacts": 105,
+    "hashed_sources": 21,
+    "installed_poolers_unchanged": true,
+    "sequential_timed_calls": 3600,
+    "interleaved_timed_calls": 3600
+  },
+  "checks": {
+    "mean_p50": false,
+    "each_checkpoint_p50": true,
+    "mean_p95": true,
+    "synchronization_mechanism": true
+  },
+  "passed_development_screen": false,
+  "report_script_sha256": "6299c5bb92e46582b890e5accc4a9d9c8bd86de2a92784173ed1f8870833010a",
+  "evidence_sha256": {
+    "metrics.csv": "3b87cad53603a0f0187bd89b395e2cd83338f8c57d96d47d72b5abd4e05810af",
+    "interleaved.csv": "dcd6ed380bb6cef4c74ddc23c1a0614f7c16871e0aef90cad8401f9a8bd63f05",
+    "manifest.json": "850e5d58a4ef236041c9ba1ee31790377e0205d09d13c3abbd84ff707672d221",
+    "config.yaml": "1cef99f580a9b592fdfafc9a56b4435486e89f4843ee5b060aa815d6517d152b",
+    "gradient_audit.json": "d509f0d0ce869373212fb49be67d59832f8bf968ccceea3e4679de16ea8df858",
+    "parity.json": "f1b41632ec3a0ed37ec067b35bf012029674046579d582576084fbd24c2388c7",
+    "state_audit.json": "8a3f2d850a3d741809d258d6bb924a481983ea533666e14d3595a2c2c204157b",
+    "profiles.json": "d50e58db296964651bf681cac4d24a49fb4fb69994af64eef256b8daf9b1d6a9",
+    "artifacts.json": "4c43be9682f238b2c8887f76f77b2c78f5ae647cf4fb5ffa8d8a12d48af03bc8",
+    "COMPLETE.json": "73c9d3e62ec0d679884e32a58ae38e0dcd0a95ac75bce022be7a65e250484997"
+  },
+  "aggregation": "Mean inference seeds within checkpoint, equal checkpoint weights; speed gate averages checkpoint ratios",
+  "scope": "SDD development execution screen; frozen FP32 H4; profiler runs after all timing, never used for speed gate"
+}

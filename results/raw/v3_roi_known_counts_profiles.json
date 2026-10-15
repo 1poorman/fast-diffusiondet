@@ -1,0 +1,74 @@
+[
+  {
+    "train_seed": 10,
+    "arm": "original",
+    "roi_calls": 40,
+    "synchronizations": {
+      "cudaStreamSynchronize": 280
+    },
+    "synchronization_count": 280,
+    "repeat_interleave_calls": 80,
+    "images": 10,
+    "prediction_bit_exact": true
+  },
+  {
+    "train_seed": 10,
+    "arm": "known_counts",
+    "roi_calls": 40,
+    "synchronizations": {
+      "cudaStreamSynchronize": 160
+    },
+    "synchronization_count": 160,
+    "repeat_interleave_calls": 0,
+    "images": 10,
+    "prediction_bit_exact": true
+  },
+  {
+    "train_seed": 11,
+    "arm": "known_counts",
+    "roi_calls": 40,
+    "synchronizations": {
+      "cudaStreamSynchronize": 160
+    },
+    "synchronization_count": 160,
+    "repeat_interleave_calls": 0,
+    "images": 10,
+    "prediction_bit_exact": true
+  },
+  {
+    "train_seed": 11,
+    "arm": "original",
+    "roi_calls": 40,
+    "synchronizations": {
+      "cudaStreamSynchronize": 280
+    },
+    "synchronization_count": 280,
+    "repeat_interleave_calls": 80,
+    "images": 10,
+    "prediction_bit_exact": true
+  },
+  {
+    "train_seed": 12,
+    "arm": "original",
+    "roi_calls": 40,
+    "synchronizations": {
+      "cudaStreamSynchronize": 280
+    },
+    "synchronization_count": 280,
+    "repeat_interleave_calls": 80,
+    "images": 10,
+    "prediction_bit_exact": true
+  },
+  {
+    "train_seed": 12,
+    "arm": "known_counts",
+    "roi_calls": 40,
+    "synchronizations": {
+      "cudaStreamSynchronize": 160
+    },
+    "synchronization_count": 160,
+    "repeat_interleave_calls": 0,
+    "images": 10,
+    "prediction_bit_exact": true
+  }
+]

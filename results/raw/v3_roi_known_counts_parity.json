@@ -1,0 +1,65 @@
+[
+  {
+    "train_seed": 10,
+    "eval_seed": 0,
+    "full_prediction_images": 750,
+    "interleaved_prediction_calls": 440,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 10,
+    "eval_seed": 1,
+    "full_prediction_images": 750,
+    "interleaved_prediction_calls": 440,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 10,
+    "eval_seed": 2,
+    "full_prediction_images": 750,
+    "interleaved_prediction_calls": 440,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 11,
+    "eval_seed": 0,
+    "full_prediction_images": 750,
+    "interleaved_prediction_calls": 440,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 11,
+    "eval_seed": 1,
+    "full_prediction_images": 750,
+    "interleaved_prediction_calls": 440,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 11,
+    "eval_seed": 2,
+    "full_prediction_images": 750,
+    "interleaved_prediction_calls": 440,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 12,
+    "eval_seed": 0,
+    "full_prediction_images": 750,
+    "interleaved_prediction_calls": 440,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 12,
+    "eval_seed": 1,
+    "full_prediction_images": 750,
+    "interleaved_prediction_calls": 440,
+    "bit_exact": true
+  },
+  {
+    "train_seed": 12,
+    "eval_seed": 2,
+    "full_prediction_images": 750,
+    "interleaved_prediction_calls": 440,
+    "bit_exact": true
+  }
+]

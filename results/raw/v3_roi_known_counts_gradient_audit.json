@@ -1,0 +1,9 @@
+{
+  "device": "cuda",
+  "format_bit_exact": true,
+  "output_bit_exact": true,
+  "gradient_max_abs": 0.0,
+  "gradient_rtol": 2e-05,
+  "gradient_atol": 2e-05,
+  "passed": true
+}
