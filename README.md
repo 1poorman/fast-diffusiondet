@@ -20,7 +20,8 @@
 > [B1骨干FP16](docs/v3/BACKBONE_PRECISION.md) 已完成18次全验证和9组交错计时：ΔAP+0.003，p50降低11.66%，未达预设15%门槛。
 > [R1已知数量ROI索引](docs/v3/ROI_KNOWN_COUNTS.md) 已完成18次全验证：预测精确一致，ROI同步28→16次/图，p50降低3.26%，未达5%门槛。
 > [R2 GPU侧ROI采样](docs/v3/ROI_GPU_DISPATCH.md) 已完成18次全验证：相对R1，p50降低25.87%，AP/AP75保持到三位小数，ROI同步16→0次/图，通过全部预设门槛；保留为可选模式。
-> 保留FP32及原pooler默认；两种执行优化为独立可选项，下一步验证剩余逐层nonzero路径。
+> [D1数据审计](docs/v3/DATA_READINESS.md) 已修复111张PLS test路径，发现SDD train/val有15对精确重复；排除后的735图R2两臂均67.776 AP，仍仅属开发集诊断。
+> 保留FP32及原pooler默认；下一步先恢复或重建PLS/WHEAT权重，并解决独立终测的数据来源及类别覆盖问题。
 >
 > - 蓝图与里程碑：**[docs/BLUEPRINT.md](docs/BLUEPRINT.md)**
 > - 实时工作状态：**[docs/PROGRESS.md](docs/PROGRESS.md)**

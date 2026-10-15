@@ -203,3 +203,30 @@ ROI kernel启动188→64次/图；模型峰值allocated显存均0.576337GiB，�
 R2列为当前RTX 3090 / SDD开发集可选执行候选，默认仍为原pooler、FP32、uniform、P300和原focal。
 下一步优先独立数据与目标硬件确认；若与B1组合，需另立协议，不能相加不同运行轮次的速度收益。
 按推理实现、实验与归档、总览文档分批提交；大型预测、轨迹和编译缓存保持忽略。
+
+## D1 跨数据集准备与重复图敏感性
+
+用户继续后，按R2后续优先级核验独立数据准备；发现当前PLS/WHEAT记录权重路径均不存在。
+初步读取发现PLS全部111个test路径使用Windows分隔符及重复test2017前缀，且类别12
+Cherry_powdery_mildew在train/val均0标注、test有10图。完整检查范围固定于
+[DATA_READINESS.md](DATA_READINESS.md)，不把历史AP表当作仍可使用的checkpoint。
+
+修复`data_register.resolve_image_file`：已有路径优先，只规范化分隔符及精确重复的split前缀，
+不跨split找替代文件、不改原图/JSON或类别映射。真实test loader已解码/resize全部111张图片。
+完整数据审计目录`runs/v3/data_readiness_20261015/`，七个split共13,369张图片全部可读、尺寸一致，
+除111条test路径外，其余原路径均未改变；标注结构和category ID/name对应检查通过。
+
+文件SHA256及解码RGB SHA256两种检查均发现SDD train/val 15对完全重复图，涉及15张val图（2%），
+其余PLS/WHEAT跨split均无精确重叠。PLS test类别覆盖和历史使用状态仍不满足标准独立闭集声明；
+无精确重复不等于没有近重复。逐图hash和原始源码/标注hash已存档，源文件保持只读。
+
+在查看去重后AP前固定追加诊断：对R2全部18份冻结预测，先复算完整750图所有AP（最大偏差0），
+再排除15张重复验证图，保留735图/1,735标注。最终归档目录`runs/v3/data_readiness_sensitivity_export_20261015/`。
+控制/候选AP为67.77607244/67.77607476，AP75均74.09805798；两臂ΔAP约+0.00000232。
+控制相对完整集合ΔAP−0.001164、ΔAP75−0.005054；仅为事后开发集敏感性，不改变R2原Gate及计时。
+全部原预测和标注hash通过，排除ID由已核验的逐图hash重新推导；没有新训练/推理或GPU任务。
+
+新增7项路径/注册回归与5项审计/敏感性测试，完整测试集222 passed。两份审计进程均exit code 0，
+产物归档至`results/raw/v3_data_readiness*`。下一步先恢复或按固定预算重建domain权重；
+WHEAT具有完整12类训练覆盖，但历史val使用意味着它仍不是新独立终测。保留原pooler默认。
+按路径修复、审计与归档、总览文档分批提交；逐图记录继续保留于忽略的run目录。

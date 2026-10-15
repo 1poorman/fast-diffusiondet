@@ -898,3 +898,91 @@ GPU dispatch列为本轮执行候选，但配置默认关闭。支持范围之�
 
 GPU采样选项在训练/梯度路径回退原pooler。评测runner使用共同冻结配置，逐臂替换pooler；
 因此归档的共同config仍为默认关闭，实际执行模式以manifest、每单元arm与profiler为准。
+
+## D1：跨数据集准备与SDD重复图敏感性（2026-10-15完成）
+
+**已修复PLS全部111张test图片的加载路径；发现SDD验证集15张图与训练图完全重复，
+以及PLS test含10张训练中未见类别图片。** 本轮完成数据审计及冻结预测的敏感性复算，
+没有运行新训练、推理或GPU任务，也没有完成跨数据集模型确认。
+
+### 数据和路径检查
+
+协议及审计后追加的敏感性范围见[DATA_READINESS.md](DATA_READINESS.md)。
+逐图读取七个注册split，共13,369张图片，核验原路径、加载路径、真实尺寸、文件SHA256、
+解码RGB像素SHA256、标注结构及类别覆盖。原图片和JSON均只读，原标注hash起止一致。
+
+| split | 图片 | 标注 | 声明/实际有标注类别 | 修复路径 | 修复后不可读/尺寸不符 |
+|---|---:|---:|---:|---:|---:|
+| PLS train | 7,916 | 7,915 | 16 / 15 | 0 | 0 / 0 |
+| PLS val | 2,024 | 2,024 | 16 / 15 | 0 | 0 / 0 |
+| PLS test | 111 | 111 | 16 / 16 | 111 | 0 / 0 |
+| SDD train | 1,750 | 3,932 | 7 / 7 | 0 | 0 / 0 |
+| SDD val | 750 | 1,775 | 7 / 7 | 0 | 0 / 0 |
+| WHEAT train | 695 | 1,827 | 12 / 12 | 0 | 0 / 0 |
+| WHEAT val | 123 | 294 | 12 / 12 | 0 | 0 / 0 |
+
+PLS test原始`file_name`形如`test2017\apple_black_rot-234.jpg`，而image_root已经是test2017。
+新`resolve_image_file`保留已存在的原路径，按需规范化分隔符并去掉完全匹配的重复split前缀；
+不搜索其他split、不把嵌套路径随意改成basename。所有既有有效训练/验证路径保持原样。
+真实Detectron2 test loader已逐张解码和resize全部111图，类别ID及Cherry类别映射保留。
+
+### 精确重叠与类别缺口
+
+| 跨split对 | 文件相同组 | RGB像素相同组 | 两侧参与图片数 |
+|---|---:|---:|---:|
+| PLS train / val | 0 | 0 | 0 / 0 |
+| PLS train / test | 0 | 0 | 0 / 0 |
+| PLS val / test | 0 | 0 | 0 / 0 |
+| SDD train / val | 15 | 15 | 15 / 15 |
+| WHEAT train / val | 0 | 0 | 0 / 0 |
+
+SDD重复图片使用不同文件名，例如训练`leaf_spot535.jpg`与验证`leaf_spot654.jpg`内容完全相同。
+15张验证图占750图的2%，其中共有40个标注（Leaf Spot 39、Powdery Mildew Fruit 1）。
+文件和RGB重复组对应相同15对；无额外“编码不同、解码像素相同”组。
+本轮只排查完全相同内容，未建立近重复或同一采集场景的分组边界。
+
+PLS类别12 `Cherry_powdery_mildew`在train/val均0标注，在test为10图/10标注（test的9.01%）。
+因此历史PLS val成绩并未覆盖全部16个声明类别，也不能把完整test当作训练类别均已见的闭集验证。
+没有删除这10张图或合并/重编号类别。仓库未发现test评测记录，但无法证明历史上从未使用过它。
+
+### 原R2结果的敏感性
+
+复用R2三份权重×三个推理seed×两臂的18份冻结COCO预测，先在完整750图复算全部AP指标，
+与原记录最大绝对差0；再仅排除上述15个验证image_id，保留735图、1,735个标注。
+不重新生成预测、不测新延迟、不改原R2配置、数据或Gate。
+
+| 集合 | R1控制AP | GPU dispatch AP | 控制AP75 | GPU dispatch AP75 | 两臂ΔAP |
+|---|---:|---:|---:|---:|---:|
+| 原完整750图 | 67.77723631 | 67.77723862 | 74.10311200 | 74.10311200 | +0.00000232 |
+| 排除精确重复的735图 | 67.77607244 | 67.77607476 | 74.09805798 | 74.09805798 | +0.00000232 |
+
+控制AP/AP75相对完整集合分别变化−0.001164/−0.005054；R2两臂的近似等价关系在此诊断中保留。
+这是事后敏感性分析，735图仍来自反复使用的开发验证集；不能称为新独立测试，也不能据此排除
+近重复的影响。原R2的750图结论和计时证据保持原记录，不用735图重写历史Gate。
+
+### 后续条件与产物
+
+记录中的PLS/WHEAT末步权重路径当前均不存在，历史AP表不能代替可加载的模型。
+下一轮应先恢复或按固定预算重建domain基线，再开展R2跨数据集比较；WHEAT的12类覆盖齐全，
+但其val已有历史使用，只能确认跨域执行。标准独立终测仍需要可核验来源及训练类别覆盖的新留出数据，
+或明确说明PLS test的未见类别并分别报告其行为。当前不把R2改成默认模式。
+
+- [split汇总](../../results/raw/v3_data_readiness_splits.csv)、
+  [逐类覆盖](../../results/raw/v3_data_readiness_classes.csv)、
+  [完整重复组](../../results/raw/v3_data_readiness_overlap.json)、
+  [数据/来源审计](../../results/raw/v3_data_readiness_COMPLETE.json)。
+- [735图18次复算](../../results/raw/v3_data_readiness_sensitivity_metrics.csv)、
+  [checkpoint配对](../../results/raw/v3_data_readiness_sensitivity_paired.csv)、
+  [汇总](../../results/raw/v3_data_readiness_sensitivity_summary.csv)、
+  [排除ID、输入hash和复算核验](../../results/raw/v3_data_readiness_sensitivity_COMPLETE.json)。
+- 逐图hash、加载路径、源码快照：`runs/v3/data_readiness_20261015/`。
+  敏感性记录：`runs/v3/data_readiness_sensitivity_export_20261015/`。
+- 新增7项路径/注册回归和5项数据审计/敏感性测试，完整测试集222 passed。
+
+```bash
+OMP_NUM_THREADS=4 /home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_data_readiness.py \
+  --out-dir runs/v3/data_readiness_new_run --prefix v3_data_readiness_new_run
+OMP_NUM_THREADS=4 /home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_data_sensitivity.py \
+  --audit-dir runs/v3/data_readiness_new_run --out-dir runs/v3/data_sensitivity_new_run \
+  --prefix v3_data_sensitivity_new_run
+```
