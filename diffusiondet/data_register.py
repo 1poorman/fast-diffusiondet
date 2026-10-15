@@ -103,6 +103,31 @@ def make_eval_json(json_file, name, excluded_cat_ids, root):
     return cache_file
 
 
+def resolve_image_file(image_root, file_name):
+    r"""Resolve portable COCO paths, including an already-prefixed split folder.
+
+    Keep an existing literal path first. Some exports use ``test2017\\image.jpg``
+    even though image_root already ends in test2017. Only remove that exact
+    duplicate prefix; never guess by searching other splits or by basename.
+    """
+    image_root = os.fspath(image_root)
+    direct = os.path.join(image_root, file_name)
+    portable = file_name.replace('\\', '/')
+    split = os.path.basename(os.path.normpath(image_root))
+    if portable == file_name and not portable.startswith(split + '/'):
+        return direct
+    if os.path.isfile(direct):
+        return direct
+    normalized = os.path.join(image_root, portable)
+    if os.path.isfile(normalized):
+        return normalized
+    if portable.startswith(split + '/'):
+        unprefixed = os.path.join(image_root, portable[len(split) + 1:])
+        if os.path.isfile(unprefixed):
+            return unprefixed
+    return direct
+
+
 def _load_and_convert(json_file, image_root):
     """读取一个 COCO json，返回 (dataset_dicts, thing_classes, id_map, (n_bg, n_crowd))。"""
     from collections import OrderedDict
@@ -136,7 +161,7 @@ def _load_and_convert(json_file, image_root):
     for img_id in sorted(images.keys()):
         im = images[img_id]
         record = OrderedDict()
-        record["file_name"] = os.path.join(image_root, im["file_name"])
+        record["file_name"] = resolve_image_file(image_root, im["file_name"])
         record["image_id"] = img_id
         record["height"] = im["height"]
         record["width"] = im["width"]
