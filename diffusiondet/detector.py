@@ -23,6 +23,7 @@ from detectron2.structures import Boxes, ImageList, Instances
 
 from .loss import SetCriterionDynamicK, HungarianMatcherDynamicK
 from .head import DynamicHead
+from .backbone_precision import backbone_features
 from .util.box_ops import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
 from .util.misc import nested_tensor_from_tensor_list
 
@@ -84,6 +85,9 @@ class DiffusionDet(nn.Module):
         # Build Backbone.
         self.backbone = build_backbone(cfg)
         self.size_divisibility = self.backbone.size_divisibility
+        self.eval_backbone_precision = cfg.MODEL.DiffusionDet.EVAL_BACKBONE_PRECISION
+        if self.eval_backbone_precision not in ("fp32", "fp16"):
+            raise ValueError("EVAL_BACKBONE_PRECISION must be fp32 or fp16")
 
         # build diffusion
         timesteps = 1000
@@ -435,7 +439,7 @@ class DiffusionDet(nn.Module):
                 raise ValueError(f"inference_noise must have shape {expected} and match image tensor device/dtype")
 
         # Feature Extraction.
-        src = self.backbone(images.tensor)
+        src = backbone_features(self.backbone, images.tensor, self.eval_backbone_precision, training=self.training)
         features = list()
         for f in self.in_features:
             feature = src[f]

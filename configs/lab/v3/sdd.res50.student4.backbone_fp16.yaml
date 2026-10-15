@@ -1,0 +1,4 @@
+_BASE_: "sdd.res50.student4.yaml"
+MODEL:
+  DiffusionDet:
+    EVAL_BACKBONE_PRECISION: "fp16"

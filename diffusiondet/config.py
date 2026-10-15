@@ -36,6 +36,8 @@ def add_diffusiondet_config(cfg):
     # False avoids materializing unused attention maps (SDPA eligible on torch 2).
     # Keep the original arithmetic by default for historical solver regressions.
     cfg.MODEL.DiffusionDet.ATTENTION_NEED_WEIGHTS = True
+    # Evaluation only: autocast backbone to FP16, then restore FPN features to FP32.
+    cfg.MODEL.DiffusionDet.EVAL_BACKBONE_PRECISION = "fp32"
     # V3: used only when an explicit frozen teacher is passed during training.
     cfg.MODEL.DiffusionDet.KD_TEMPERATURE = 2.0
     cfg.MODEL.DiffusionDet.KD_MIN_IOU = 0.5
