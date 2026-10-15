@@ -1,0 +1,51 @@
+{
+  "audit": {
+    "evaluations": 18,
+    "interleaved_pairs": 9,
+    "dtype_audits": 12,
+    "frozen_checkpoints": 3,
+    "finite_validation_image_calls": 13500,
+    "baseline_max_abs_AP_difference": 0.0,
+    "hashed_artifacts": 81,
+    "hashed_sources": 17,
+    "interleaved_timed_calls": 3600,
+    "sequential_timed_calls": 3600,
+    "source_state_dtypes": {
+      "10": {
+        "torch.float64": 12,
+        "torch.float32": 453
+      },
+      "11": {
+        "torch.float64": 12,
+        "torch.float32": 453
+      },
+      "12": {
+        "torch.float64": 12,
+        "torch.float32": 453
+      }
+    }
+  },
+  "checks": {
+    "mean_AP": true,
+    "mean_AP75": true,
+    "each_checkpoint_AP": true,
+    "worst_category": true,
+    "mean_p50": false,
+    "each_checkpoint_p50": true,
+    "mean_p95": true
+  },
+  "passed_development_screen": false,
+  "report_script_sha256": "5a7d35a703923a3f29748fbf1e689da63aa30b914ff2e0e0c16c8c797bfd7db2",
+  "evidence_sha256": {
+    "metrics.csv": "fdeb9d4720e3a8352acf0189d8ca9ad5cbe1675295b5de3239c365a08b285171",
+    "interleaved.csv": "16b346dec52be87638228625d2d0ce827726ada370978c53e25f64c8ebe1d5ef",
+    "manifest.json": "15156309d599da08ea1f6b2f73c2ab21c0957d9e5e6ce1fc632ec14c811b2423",
+    "config.yaml": "64f1bede6e791e2c12349b11f105759a2603d2da09a9a86554fc39c2aa901bb3",
+    "precision_audit.json": "259b91d441b57d62f8bff6cf0983506970518171e8f73fd96ebe85d41369e16c",
+    "state_audit.json": "77c172dcfbf923104423781e632bac670654e08e9f955750cffac3f0779b016a",
+    "artifacts.json": "3dc641f20a277a44e650e8aeb221db4621b2181b20a345f4fedf9bb81bd05235",
+    "COMPLETE.json": "f03184876bc4e832e5c5f032138f12d680a5f139faaaffcda90636f9b6d1859d"
+  },
+  "aggregation": "Mean inference seeds within checkpoint, then equal checkpoint weights; speed gate averages checkpoint ratios",
+  "scope": "SDD development screen of frozen H4; precision-only change, not new training or held-out confirmation"
+}
