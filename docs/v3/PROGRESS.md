@@ -170,3 +170,36 @@ FP32/骨干FP16为67.777/67.780 AP、74.103/74.117 AP75；交错p50为27.815/24.
 保持原pooler默认，known-count模式保留可选，不与B1叠加宣称通过。
 下一步可独立验证剩余逐层nonzero路径，必须先核验数值/梯度与额外计算开销。
 按pooler实现、实验与归档、总览文档分批提交，大型运行产物保持忽略。
+
+## R2 GPU侧ROI层选择与采样
+
+协议固定于[ROI_GPU_DISPATCH.md](ROI_GPU_DISPATCH.md)。Triton kernel按原FPN层分配只采样所属
+层，沿用R1已知框数量索引，不创建逐层CPU可见变长索引。默认关闭；限定CUDA连续FP32、
+四层ROIAlignV2、sampling_ratio=2、eval+no_grad；训练/梯度、CPU、tracing、autocast及不支持设置
+回退原ROIPooler，不修改安装的Detectron2/torchvision，也不实现新反向算子。
+
+早期Triton 2.1启动/除法API和数据路径错误均保留于独立run目录；修复后未调整数值容差。
+最终前置目录`runs/v3/roi_dispatch_prerequisite_20261015/`：合成最大误差1.19e-7，
+32图/128次真实ROI调用最大误差3.81e-6，固定rtol=1e-5、atol=2e-5全部通过；
+CUDA原生梯度回退误差0，非连续特征/autocast输出精确一致。
+管线冒烟`runs/v3/roi_gpu_dispatch_smoke_20261015/`完整退出，计时期间没有新编译。
+
+正式目录`runs/v3/roi_gpu_dispatch_20261015/`，仅GPU1、FP32/P300，T1三份600步H4权重只读。
+18次750图完整评测、9组逐图交错计时、全部计时后6组profiler完成；进程和汇总均exit code 0，
+`COMPLETE.json`存在，结束后GPU1显存0 MiB。输入形状预编译准备完成，25份缓存文件在每份
+checkpoint计时期间不变，结束后hash验证通过；256通道/300框空缓存首次调用约1.498秒。
+
+控制九组总体/逐类AP精确复现T1，13,500次验证图像调用预测有限；两臂AP均约67.777，
+平均ΔAP+0.00000232、ΔAP75=0，最差类别平均ΔAP=0。最终预测digest均不逐bit相同，
+不把AP接近描述成预测精确一致。3,960次交错调用和60次profiler调用精确复现各自臂输出。
+三份模型起止state不变，24份源码、三份权重、标注/T1参考和109份产物hash审计通过。
+
+交错p50为27.238→20.194ms，平均降低25.87%；三份checkpoint降幅26.35%/26.13%/25.13%，
+p95平均降低26.18%，通过全部预设准确率/速度门槛。ROI nonzero和stream同步16→0次/图，
+ROI kernel启动188→64次/图；模型峰值allocated显存均0.576337GiB，未观察到增加。
+结果归档至`results/raw/v3_roi_gpu_dispatch*`和`results/figures/v3_roi_gpu_dispatch.png`。
+8项新增pooler/完整head回归、29项结果审计测试通过，完整测试集210 passed。
+
+R2列为当前RTX 3090 / SDD开发集可选执行候选，默认仍为原pooler、FP32、uniform、P300和原focal。
+下一步优先独立数据与目标硬件确认；若与B1组合，需另立协议，不能相加不同运行轮次的速度收益。
+按推理实现、实验与归档、总览文档分批提交；大型预测、轨迹和编译缓存保持忽略。

@@ -568,6 +568,29 @@ kernel并集按实际CUDA时间戳去重，避免跨stream重叠重复计数；p
 
 不继续搜索更多固定P值，不将L1解释为已经训练或实现了新加速模型。
 
+六份权重、源码/配置/标注/外部pooler快照、逐图区间、分位数、执行H/P及9条轨迹哈希均通过审计。
+5400次event与90次profiler输出对拍逐字节一致；13项新审计测试通过，
+连同既有检测头/候选预算测试共26项通过。运行和汇总均exit code 0，GPU1结束后0 MiB。
+
+产物：
+[54份计时汇总](../../results/raw/v3_latency.csv) ·
+[总体汇总](../../results/raw/v3_latency_summary.csv) ·
+[训练seed配对](../../results/raw/v3_latency_paired.csv) ·
+[嵌套区间](../../results/raw/v3_latency_scopes.csv) ·
+[算子记录](../../results/raw/v3_latency_operators.csv) ·
+[同步区间归属](../../results/raw/v3_latency_sync.csv) ·
+[同步算子归属](../../results/raw/v3_latency_sync_operators.csv) ·
+[轨迹摘要](../../results/raw/v3_latency_profiles.json) ·
+[完整审计](../../results/raw/v3_latency_audit.json) ·
+[manifest](../../results/raw/v3_latency_manifest.json) ·
+[配置](../../results/raw/v3_latency_config.yaml)。
+完整逐图记录、压缩Chrome trace和源码快照：`runs/v3/latency_20261014/`。
+
+```bash
+/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_summarize_latency.py \
+  runs/v3/latency_20261014
+```
+
 ## B1：仅骨干FP16推理（2026-10-15完成）
 
 **精度保持，但交错计时p50仅降低11.66%，未达到预设15%门槛；保留FP32默认。**
@@ -756,25 +779,122 @@ ROI域repeat_interleave算子记录由80条降至0条。减少的是索引构造
 # 可选配置：configs/lab/v3/sdd.res50.student4.roi_known_counts.yaml
 # 默认ROI_POOLER_KNOWN_COUNTS=False；旧权重严格兼容。
 ```
-六份权重、源码/配置/标注/外部pooler快照、逐图区间、分位数、执行H/P及9条轨迹哈希均通过审计。
-5400次event与90次profiler输出对拍逐字节一致；13项新审计测试通过，
-连同既有检测头/候选预算测试共26项通过。运行和汇总均exit code 0，GPU1结束后0 MiB。
 
-产物：
-[54份计时汇总](../../results/raw/v3_latency.csv) ·
-[总体汇总](../../results/raw/v3_latency_summary.csv) ·
-[训练seed配对](../../results/raw/v3_latency_paired.csv) ·
-[嵌套区间](../../results/raw/v3_latency_scopes.csv) ·
-[算子记录](../../results/raw/v3_latency_operators.csv) ·
-[同步区间归属](../../results/raw/v3_latency_sync.csv) ·
-[同步算子归属](../../results/raw/v3_latency_sync_operators.csv) ·
-[轨迹摘要](../../results/raw/v3_latency_profiles.json) ·
-[完整审计](../../results/raw/v3_latency_audit.json) ·
-[manifest](../../results/raw/v3_latency_manifest.json) ·
-[配置](../../results/raw/v3_latency_config.yaml)。
-完整逐图记录、压缩Chrome trace和源码快照：`runs/v3/latency_20261014/`。
+## R2：GPU侧ROI层选择与采样（2026-10-15完成）
+
+**全部预设门槛通过：相对R1控制，交错p50平均降低25.87%，AP/AP75保持到三位小数。**
+这是当前RTX 3090和SDD开发集上的可选执行候选，默认仍为原pooler，未宣称训练收益或独立集结论。
+
+### 协议与实现
+
+协议在数值及性能结果前固定于[ROI_GPU_DISPATCH.md](ROI_GPU_DISPATCH.md)。本轮比较R1
+known-count控制和GPU dispatch候选：沿用原FPN层分配及已知框数量batch索引，通过一个
+Triton ROIAlignV2 kernel在GPU侧选择所属特征层，每个ROI仅在该层采样，直接写入固定输出。
+没有逐层生成CPU可见的变长索引，也不在四层重复采样全部ROI。
+
+可选配置为`EVAL_ROI_GPU_DISPATCH=True`，默认关闭；仅支持eval+no_grad、CUDA连续FP32、
+四层FPN、方形ROIAlignV2及sampling_ratio=2。训练、需要梯度、CPU、tracing、autocast和
+不支持的输入/设置回退原ROIPooler。没有新反向kernel，不修改安装的Detectron2/torchvision。
+不改变P300、H4、NFE1、uniform、原focal、输入尺寸和FP32，也不叠加B1。
+
+使用T1三个600步H4末步权重，checkpoint seed10/11/12×推理seed0/1/2×两臂，
+完整验证每次750图。每单元20图预热+200图顺序计时，另有9组逐图AB/BA交错计时作为速度依据。
+全部计时完成后才做6组×10图profiler。仅使用GPU1 / RTX 3090、4 CPU线程，TF32关闭。
+推理seed先在checkpoint内平均，再等权平均checkpoint；速度门槛平均checkpoint比值。
+
+合成前置检查覆盖空/不等长batch、空层、FPN边界、越界、退化/反向/NaN框和真实256通道、
+300框规模，固定rtol=1e-5、atol=2e-5。32图完整模型冒烟另核验128次ROI调用。
+首次编译成本单列；正式计时前遍历输入尺寸完成编译准备，并验证计时期间缓存没有变化。
+早期启动/编译API和数据路径错误保留在独立run目录及
+[setup记录](../../results/raw/v3_roi_gpu_dispatch_setup_failures.json)，未修改数值容差。
+
+- 正式目录：`runs/v3/roi_gpu_dispatch_20261015/`；管线冒烟为`runs/v3/roi_gpu_dispatch_smoke_20261015/`。
+- 数值与完整模型前置目录：`runs/v3/roi_dispatch_prerequisite_20261015/`。
+- [18次评测](../../results/raw/v3_roi_gpu_dispatch.csv)、
+  [交错计时](../../results/raw/v3_roi_gpu_dispatch_interleaved.csv)、
+  [checkpoint配对](../../results/raw/v3_roi_gpu_dispatch_paired.csv)、
+  [逐类AP](../../results/raw/v3_roi_gpu_dispatch_per_class.csv)、
+  [汇总](../../results/raw/v3_roi_gpu_dispatch_summary.csv)。
+- [manifest](../../results/raw/v3_roi_gpu_dispatch_manifest.json)、
+  [合成数值与梯度](../../results/raw/v3_roi_gpu_dispatch_numerical_audit.json)、
+  [完整模型前置检查](../../results/raw/v3_roi_gpu_dispatch_prerequisite.json)、
+  [编译缓存](../../results/raw/v3_roi_gpu_dispatch_jit_audit.json)、
+  [profiler计数](../../results/raw/v3_roi_gpu_dispatch_profiles.json)、
+  [Gate与证据核验](../../results/raw/v3_roi_gpu_dispatch_gate.json)。
+  大型预测、逐图时间、轨迹和编译缓存保留于run目录；
+  [hash清单](../../results/raw/v3_roi_gpu_dispatch_artifacts.json)用于核验。
+
+### 结果与Gate
+
+| pooler | AP | AP75 | 交错p50 ms | 交错p95 ms | ROI同步/图 | ROI kernel/图 | 峰值allocated GiB |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| R1已知数量索引 | 67.777 | 74.103 | 27.238 | 28.401 | 16 | 188 | 0.576337 |
+| GPU dispatch | 67.777 | 74.103 | 20.194 | 20.968 | 0 | 64 | 0.576337 |
+
+| checkpoint训练seed | R1 p50 ms | 新p50 ms | p50降低 | p95变化 | ΔAP |
+|---|---:|---:|---:|---:|---:|
+| 10 | 26.878 | 19.795 | 26.35% | -27.15% | 0.00000000 |
+| 11 | 26.925 | 19.891 | 26.13% | -26.60% | 0.00000696 |
+| 12 | 27.910 | 20.896 | 25.13% | -24.80% | 0.00000000 |
+
+| 预设条件 | 实测 | 判定 |
+|---|---:|---|
+| 平均ΔAP、ΔAP75均≥−0.05 | +0.00000232 / 0 | 通过 |
+| 每份checkpoint平均ΔAP≥−0.1 | 最低0 | 通过 |
+| 最差类别平均ΔAP≥−0.3 | 最低0 | 通过 |
+| 交错p50平均降低≥5% | 25.87% | 通过 |
+| 每份checkpoint交错p50降低≥3% | 最低25.13% | 通过 |
+| 平均p95增幅≤5% | −26.18% | 通过 |
+| ROI nonzero消失且同步减少 | 16→0次/图 | 通过 |
+
+两臂总体AP分别67.77723631和67.77723862，AP75均为74.10311200。
+控制九组总体/逐类指标精确复现T1；最差类别平均ΔAP为0，最大类别变化仅+0.00001460。
+6,750对最终预测digest均不逐bit相同，不能把上述AP接近写成预测精确一致。
+本轮p50约节省7.044ms；应与同轮R1控制比较，不能把不同运行轮次的延迟直接相减，
+也不将本轮通过改写为R1原5%门槛通过。
+
+![R2 latency and ROI synchronization](../../results/figures/v3_roi_gpu_dispatch.png)
+
+### 数值、编译和机制审计
+
+合成最大绝对误差为1.19e-07；32图、128次真实ROI调用
+最大绝对误差为3.81e-06，全部通过预先固定的rtol=1e-5、atol=2e-5。
+CUDA原生回退的梯度最大绝对差为0；非连续特征和autocast回退输出精确一致。
+全部13,500次验证图像调用预测有限，3,960次交错调用与60次profiler调用均精确复现各自臂的
+未插桩输出。三个模型起止digest不变，并与源权重一致。
+24份源码、三份权重、原/过滤标注、T1参考及109份产物hash全部通过审计；安装的poolers源码未变。
+
+空缓存下256通道/300框首次pooler调用约1.498秒，包含JIT、初始化和执行，不能称为纯编译耗时。
+8/32通道测试各自首次调用约1.595/1.477秒；这些冷启动调用排除于稳态计时。
+输入形状准备阶段每份权重耗时6.83–7.64秒，主要包含遍历750图的CPU读取/resize和形状首次执行，
+不能把它全算作编译成本。本验证集实际形状为800×800；缓存位于运行目录`triton_cache/`，
+每份权重准备后25个缓存文件在其完整计时阶段保持不变，且结束后逐项hash验证通过。
+
+六组正式profiler各覆盖10图、40次ROI调用。R1控制有160次nonzero及160次stream同步，
+GPU dispatch均为0；ROI kernel启动由1880减至640，其中40次为Triton采样kernel。
+保留的kernel主要来自原层分配、batch索引、输出清零；输出仍为300×256×7×7，约14.36MiB。
+两臂模型峰值allocated显存均为0.576337GiB，未观察到增加；缓存文件不是CUDA张量allocated显存。
+
+### 范围与后续
+
+GPU dispatch列为本轮执行候选，但配置默认关闭。支持范围之外继续使用原pooler，
+没有训练加速或新梯度实现。8项新增pooler/完整head回归、29项结果审计测试通过，
+完整CPU测试集210 passed。
+当前结论限于Triton 2.1.0 / torch 2.1.2+cu121 / Detectron2 0.6 / RTX 3090及反复使用的SDD开发集。
+后续优先独立数据与目标硬件确认；若组合骨干FP16，需另立配对协议，不能直接相加B1/R2收益。
+
+### 复现入口
 
 ```bash
-/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_summarize_latency.py \
-  runs/v3/latency_20261014
+/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_roi_dispatch_checks.py \
+  --gpu 1 --model-smoke --out-dir runs/v3/roi_dispatch_checks_new_run
+/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_roi_gpu_dispatch.py \
+  --gpu 1 --prerequisite runs/v3/roi_dispatch_checks_new_run --out-dir runs/v3/roi_gpu_dispatch_new_run
+/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_summarize_roi_dispatch.py \
+  runs/v3/roi_gpu_dispatch_new_run --prefix v3_roi_gpu_dispatch_new_run
+# 可选配置：configs/lab/v3/sdd.res50.student4.roi_gpu_dispatch.yaml
+# 默认EVAL_ROI_GPU_DISPATCH=False；需兼容的Triton，本轮为2.1.0。
 ```
+
+GPU采样选项在训练/梯度路径回退原pooler。评测runner使用共同冻结配置，逐臂替换pooler；
+因此归档的共同config仍为默认关闭，实际执行模式以manifest、每单元arm与profiler为准。
