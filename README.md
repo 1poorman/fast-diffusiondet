@@ -6,7 +6,7 @@
 > 系统性对比 **DDIM / EDM(Heun+Karras) / PFGM++(重尾泊松流) / DPM-Solver-v3(EMS 高阶多步)**
 > 在**同等 NFE 预算**下的检测精度与推理耗时。
 >
-> **当前研究（2026-10-14）：V3 单步检测头压缩与定位增强。**
+> **当前研究（2026-10-15）：V3 单步检测头压缩与定位增强。**
 > v1/v2 已显示继续减少采样误差的收益有限；新一轮转向 NFE=1 内部的检测头深度、
 > 注意力执行优化，以及后续浅层蒸馏/分布定位。
 > [新蓝图](docs/v3/BLUEPRINT.md) · [技术检索](docs/v3/RESEARCH.md) ·
@@ -16,7 +16,9 @@
 > [P1候选框预算](docs/v3/PROPOSAL_BUDGET.md) 已完成36次全量评测：小P提速不足1%且AP下降，保留P300。
 > [Q1质量监督](docs/v3/QUALITY_SUPERVISION.md) 已完成27次全量评测：AP−0.170、AP75−0.720，保持原focal。
 > 同预算H6为68.056 AP、34.152ms；H4少0.278 AP、p50低17.76%，尚未达联合目标；均为SDD开发集结果。
-> [L1耗时审计](docs/v3/LATENCY_PROFILE.md) 已完成27组计时：减框不减少ROI同步，后续优先独立验证骨干精度模式与ROI执行优化。
+> [L1耗时审计](docs/v3/LATENCY_PROFILE.md) 已完成27组计时：减框不减少ROI同步。
+> [B1骨干FP16](docs/v3/BACKBONE_PRECISION.md) 已完成18次全验证和9组交错计时：ΔAP+0.003，p50降低11.66%，未达预设15%门槛。
+> 保留FP32默认；骨干FP16为可选模式，下一步独立验证ROI执行优化。
 >
 > - 蓝图与里程碑：**[docs/BLUEPRINT.md](docs/BLUEPRINT.md)**
 > - 实时工作状态：**[docs/PROGRESS.md](docs/PROGRESS.md)**

@@ -1,6 +1,6 @@
 # V3 验证记录
 
-更新：2026-10-14。G1/G2/T1/P1/Q1/L1均已完成；各节保留对应协议、结果和复现入口。
+更新：2026-10-15。G1/G2/T1/P1/Q1/L1/B1均已完成；各节保留对应协议、结果和复现入口。
 
 ## G0：实现正确性
 
@@ -567,6 +567,100 @@ kernel并集按实际CUDA时间戳去重，避免跨stream重叠重复计数；p
    不修改安装依赖、不直接删除有效性检查，也不预先声称能达到10%或更高提速。
 
 不继续搜索更多固定P值，不将L1解释为已经训练或实现了新加速模型。
+
+## B1：仅骨干FP16推理（2026-10-15完成）
+
+**精度保持，但交错计时p50仅降低11.66%，未达到预设15%门槛；保留FP32默认。**
+FP16作为独立可选推理模式保留，未晋级为本轮开发部署候选，也没有产生新训练权重。
+
+### 协议与可追踪证据
+
+协议在结果前固定于[BACKBONE_PRECISION.md](BACKBONE_PRECISION.md)。使用T1的三份600步
+uniform H4末步权重，P300、NFE1、原focal、no_weights、固定top-k300，保持输入尺寸与NMS。
+FP32/骨干FP16各3个推理seed，共18次完整750图验证，仅使用GPU1 / RTX 3090。
+只有backbone/FPN开启CUDA autocast，特征转回FP32后才进入检测头；参数与buffer不转换。
+
+每次完整验证记录20图预热+200图同步模型调用计时。另外在相同图像、噪声seed上逐图AB/BA
+交错两臂，共9组×2臂×200图，作为速度门槛依据。噪声生成、autocast及特征还原都计入耗时，
+CPU读取/resize、随机种子设置、evaluator和数值审计不计入；计时阶段没有dtype hooks或profiler。
+先在每份checkpoint内平均推理seed，再对三个checkpoint等权平均；速度降幅平均checkpoint比值。
+
+- 正式目录：`runs/v3/backbone_precision_20261015/`；32图冒烟仅验证管线，不参与结论。
+- [18次完整评测](../../results/raw/v3_backbone_precision.csv)、
+  [交错计时](../../results/raw/v3_backbone_precision_interleaved.csv)、
+  [checkpoint配对](../../results/raw/v3_backbone_precision_paired.csv)、
+  [汇总](../../results/raw/v3_backbone_precision_summary.csv)、
+  [逐类AP](../../results/raw/v3_backbone_precision_per_class.csv)。
+- [manifest](../../results/raw/v3_backbone_precision_manifest.json)、
+  [dtype/特征误差审计](../../results/raw/v3_backbone_precision_precision_audit.json)、
+  [冻结状态审计](../../results/raw/v3_backbone_precision_state_audit.json)、
+  [原始产物hash](../../results/raw/v3_backbone_precision_artifacts.json)、
+  [Gate与证据审计](../../results/raw/v3_backbone_precision_gate.json)。
+  大型预测及逐图计时记录保留在run目录。
+
+### 精度与延迟
+
+| 模式 | AP | AP75 | 交错p50 ms | 交错p95 ms | 峰值allocated GiB |
+|---|---:|---:|---:|---:|---:|
+| FP32 | 67.777 | 74.103 | 27.815 | 28.950 | 0.576 |
+| 仅骨干FP16 | 67.780 | 74.117 | 24.570 | 25.958 | 0.597 |
+
+| checkpoint训练seed | ΔAP | ΔAP75 | FP32 p50 ms | 骨干FP16 p50 ms | p50降低 | p95变化 |
+|---|---:|---:|---:|---:|---:|---:|
+| 10 | +0.014 | +0.008 | 27.761 | 24.583 | 11.45% | −11.07% |
+| 11 | −0.009 | −0.015 | 27.884 | 24.614 | 11.73% | −10.05% |
+| 12 | +0.005 | +0.049 | 27.799 | 24.514 | 11.82% | −9.88% |
+| 均值 | +0.003 | +0.014 | 27.815 | 24.570 | 11.66% | −10.33% |
+
+ΔAP跨checkpoint的sample SD为0.011；这些微小差异不构成训练或结构精度提升的证据。
+最差类别为Blossom Blight，平均ΔAP−0.022；其他类别差值均在−0.004至+0.031之间。
+完整验证中的顺序计时FP32/骨干FP16 p50为27.873/24.697ms、p95为28.781/26.147ms，
+与交错结果方向一致；不把两套计时合并成额外独立重复。
+FP16的峰值allocated显存略高，不能将该模式描述为显存优化；它包含临时半精度计算与FP32特征还原。
+
+![B1 accuracy and interleaved latency](../../results/figures/v3_backbone_precision.png)
+
+### 数值审计与Gate
+
+九组FP32控制的总体/逐类AP与T1完全一致，最大绝对偏差0。18次验证共13,500次图像调用的
+最终预测均有限；六张审计图的两臂共12条dtype记录确认stem卷积及FPN输出实际为FP16，
+恢复后的head输入、四级head输出、最终框与分数均为FP32。FPN特征最大绝对误差0.02983，
+最大相对L2误差0.001758；这只是数值诊断，不代替完整AP验证。
+
+三份模型起止状态digest一致，且与源checkpoint内容一致。原checkpoint的453个FP32状态张量
+和12个FP64扩散日程buffer保持原样；`all_float_state_fp32=false`来自原有FP64日程，
+不是推理期间改变了权重精度。backbone/head浮点状态均为FP32。
+完整矩阵、原始图像窗口、AB/BA次序、分位数、三份权重、17份源码快照、标注、T1参考记录和
+81份预测/计时产物hash全部核验通过。正式进程和汇总均exit code 0，GPU1结束后0 MiB。
+新增27项精度边界与结果审计测试通过，完整测试集141 passed。
+
+| 预设条件 | 实测 | 判定 |
+|---|---:|---|
+| 平均ΔAP≥−0.3 | +0.003 | 通过 |
+| 平均ΔAP75≥−0.3 | +0.014 | 通过 |
+| 每份checkpoint平均ΔAP≥−0.5 | 最低−0.009 | 通过 |
+| 最差类别平均ΔAP≥−1.0 | −0.022 | 通过 |
+| 交错p50平均降低≥15% | 11.66% | **未通过** |
+| 每份checkpoint交错p50降低≥10% | 最低11.45% | 通过 |
+| 平均p95增幅≤5% | −10.33% | 通过 |
+
+不降低15%门槛，不追加BF16/全模型AMP后改写本轮结果。保持uniform、P300、原focal与FP32默认。
+后续优先独立验证ROI动态长度同步优化，先对拍数值和梯度，再测量无插桩端到端耗时。
+本轮仍使用反复用于选型的SDD开发集，不能视为未参与选型数据上的确认。
+
+### 复现入口
+
+```bash
+# 使用新的run目录；历史权重只读。
+/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_backbone_precision.py \
+  --gpu 1 --out-dir runs/v3/backbone_precision_new_run
+/home/huachenghao/.conda/envs/fastdiff/bin/python scripts/v3_summarize_backbone_precision.py \
+  runs/v3/backbone_precision_new_run --prefix v3_backbone_precision_new_run
+
+# 可选推理配置：configs/lab/v3/sdd.res50.student4.backbone_fp16.yaml
+# 默认仍是EVAL_BACKBONE_PRECISION=fp32；fp16仅适用于CUDA推理。
+OMP_NUM_THREADS=4 /home/huachenghao/.conda/envs/fastdiff/bin/python -m pytest tests -q
+```
 六份权重、源码/配置/标注/外部pooler快照、逐图区间、分位数、执行H/P及9条轨迹哈希均通过审计。
 5400次event与90次profiler输出对拍逐字节一致；13项新审计测试通过，
 连同既有检测头/候选预算测试共26项通过。运行和汇总均exit code 0，GPU1结束后0 MiB。
